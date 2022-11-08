@@ -68,7 +68,7 @@ function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
     knn = connectivity.knn
 
     if knn >= size(X,2)-1
-        println("Warning, the supplied knn is larger than the number of points, N. Default to using knn = N-1 instead.")
+        println("Warning, the supplied knn is larger than the number of points, N ($(size(X,2))). Default to using knn = N-1 instead.")
         knn = size(X,2)-1
     end
 
@@ -84,7 +84,7 @@ function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
     radius = connectivity.radius
 
     if radius < 0
-        println("Warning, the supplied radius is negative. Default to using norm(X,2)/length(X) instead.")
+        println("Warning, the supplied radius is negative. Default to using norm(X,2)/length(X) ($(norm(X,2))/$(length(X))) instead.")
         radius = convert(ET, norm(X,2)/length(X))
     end
 

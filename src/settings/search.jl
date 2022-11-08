@@ -16,7 +16,7 @@ searchγ(X0::Matrix{T},
 ```
 
 Outputs:
-G, X_star, Z_star, iters_cc, gaps, trace, iters
+Gs, ret, iter
 """
 function searchγ(X0::Matrix{T},
     Z0::Matrix{T},
@@ -25,9 +25,12 @@ function searchγ(X0::Matrix{T},
     assignment_config::AssignmentConfigType{T},
     search_config::SearchγConfigType;
     store_trace::Bool = true,
+    store_trace_assignments::Bool = true,
     report_cost::Bool = true) where T <: AbstractFloat
 
     max_iters, max_partition_size, getγfunc = search_config.max_iters, search_config.max_partition_size, search_config.getγfunc
+
+    Gs = Vector{Vector{Vector{Int}}}(undef, 1)
 
     # first run.
     iter = 1
@@ -38,23 +41,31 @@ function searchγ(X0::Matrix{T},
         store_trace = store_trace,
         report_cost = report_cost)
 
+    Gs[begin] = G
+
     # keep running if too many parts in the returned partition G.
     while length(G) > max_partition_size && iter <= max_iters
 
         iter += 1
         problem.γ = getγfunc(iter)
 
-        G, ret = runconvexclustering(X0, Z0,
+        new_G, ret = runconvexclustering(X0, Z0,
         problem, optim_config, assignment_config;
             store_trace = store_trace,
             report_cost = report_cost)
 
-        if length(G) < max_partition_size
-            return G, ret, iter
+        if store_trace_assignments
+            push!(Gs, new_G)
+        else
+            Gs[begin] = new_G
+        end
+
+        if length(new_G) < max_partition_size
+            return Gs, ret, iter
         end
     end
 
-    return G, ret, iter
+    return Gs, ret, iter
 end
 
 

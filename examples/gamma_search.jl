@@ -119,10 +119,11 @@ Z0 = zeros(D, N_edges)
 ### optimization algorithm settings.
 
 ### run optimization.
-G, ret, iters_γ = ConvexClustering.searchγ(
+Gs, ret, iters_γ = ConvexClustering.searchγ(
     X0, Z0, problem, optim_config, assignment_config, config_γ;
     store_trace = store_trace,
     report_cost = report_cost)
+G = Gs[end]
 #
 println("Starting γ: ", config_γ.getγfunc(1))
 println("resulting γ: ", config_γ.getγfunc(iters_γ))
