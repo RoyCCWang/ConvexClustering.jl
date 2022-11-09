@@ -41,7 +41,7 @@ dict = JLD.load("./JLD/nmr_coherence/L-Glutamine_700.13_MHz.jld") # with search_
 metric = Distances.Euclidean()
 kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does not output negative numbers.
 
-connectivity = ConvexClustering.KNNType(30) # make an edge for this number of nearest neighbours of a given point i, cycle through all i in the point set to be partitioned. Takes a positive integer.
+connectivity = ConvexClustering.KNNType(60) # make an edge for this number of nearest neighbours of a given point i, cycle through all i in the point set to be partitioned. Takes a positive integer.
 #connectivity = ConvexClustering.RadiusType(1.0) # make an edge for all points within this radius of a given point i, cycle through all i in the point set to be partitioned. Takes a finite floating point number.
 
 # package up config parameters.
@@ -124,6 +124,8 @@ Gs, ret, iters_γ = ConvexClustering.searchγ(
     store_trace = store_trace,
     report_cost = report_cost)
 G = Gs[end]
+
+println("Are the returned partitions nested successively? ", all(ConvexClustering.isnestedsuccessively(Gs)))
 #
 println("Starting γ: ", config_γ.getγfunc(1))
 println("resulting γ: ", config_γ.getγfunc(iters_γ))

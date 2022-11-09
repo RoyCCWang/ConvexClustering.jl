@@ -34,6 +34,18 @@ isnestedsuccessively(Gs::Vector{Vector{Vector{Int}}})
 ```
 
 Designed for use with the `Gs` returned output of `searchγ()`, or a similarly ordered list of partitions. If length of `Gs` is `N`, returns a list of `N-1` booleans that indicate whether the `n`-th partition of `Gs` (i.e. the `n`-th element of `Gs`) is a nested partition of the `n+1`-th partition.
+
+Example:
+```
+Gs, ret, iters_γ = ConvexClustering.searchγ(
+    X0, Z0, problem, optim_config, assignment_config, config_γ;
+    store_trace = store_trace,
+    report_cost = report_cost,
+)
+
+println("Are the returned partitions nested successively? ", all(ConvexClustering.isnestedsuccessively(Gs)))
+```
+
 """
 function isnestedsuccessively(Gs::Vector{Vector{Vector{Int}}})
     #
