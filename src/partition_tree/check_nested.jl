@@ -41,7 +41,7 @@ function isnestedsuccessively(Gs::Vector{Vector{Vector{Int}}})
     is_nested_with_next = falses(N_searches-1)
 
     for n = 1:length(Gs)-1
-        is_nested_with_next[begin+n-1], _ = iscontainedin(Gs[begin+n-1], Gs[begin+n-1+1])
+        is_nested_with_next[begin+n-1], _ = isnestedin(Gs[begin+n-1], Gs[begin+n-1+1])
     end
 
     return is_nested_with_next
