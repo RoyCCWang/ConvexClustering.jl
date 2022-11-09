@@ -126,7 +126,14 @@ Gs, ret, iters_γ = ConvexClustering.searchγ(
 G = Gs[end]
 
 println("Are the returned partitions nested successively? ", all(ConvexClustering.isnestedsuccessively(Gs)))
-#
+#=
+however, if we had:
+```
+connectivity = ConvexClustering.KNNType(60)
+```
+then we wouldn't have nested partitions. The theory in (Chi, SIAM 2019) is for fully-connected graphs, not k-nearest neighbours. Therefore a larger knn number (up to the maximum of N-1) will increase the chance of getting nested partitions.
+=#
+
 println("Starting γ: ", config_γ.getγfunc(1))
 println("resulting γ: ", config_γ.getγfunc(iters_γ))
 @show max_partition_size
