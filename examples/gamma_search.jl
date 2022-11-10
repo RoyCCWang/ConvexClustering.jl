@@ -74,8 +74,8 @@ config_γ = ConvexClustering.SearchγConfigType(max_iters_γ, max_partition_size
 updateσfunc = nn->σ_base*σ_rate^(nn-1)
 updateϵfunc = nn->1/(nn-1)^2
 #runoptimfunc = (xx,ff,dff,gg_tol)->runOptimjl(xx, ff, dff, gg_tol; verbose = verbose_subproblem)
-gap_tol = 1e-6
-cc_max_iters = 200
+gap_tol = 1e-8
+cc_max_iters = 300
 optim_config = ConvexClustering.ALMConfigType(
     gap_tol;
     #runoptimfunc;
@@ -85,7 +85,7 @@ optim_config = ConvexClustering.ALMConfigType(
 )
 
 # assignment.
-assignment_zero_tol = 1e-6
+assignment_zero_tol = 1e-3
 assignment_config = ConvexClustering.AssignmentConfigType(metric, assignment_zero_tol)
 
 # verbose, trace, and stopping condition configs.
@@ -119,7 +119,7 @@ Z0 = zeros(D, N_edges)
 ### optimization algorithm settings.
 
 ### run optimization.
-Gs, ret, iters_γ = ConvexClustering.searchγ(
+Gs, rets, iters_γ = ConvexClustering.searchγ(
     X0, Z0, problem, optim_config, assignment_config, config_γ;
     store_trace = store_trace,
     report_cost = report_cost)

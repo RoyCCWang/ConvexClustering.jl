@@ -31,17 +31,19 @@ function searchγ(X0::Matrix{T},
     max_iters, max_partition_size, getγfunc = search_config.max_iters, search_config.max_partition_size, search_config.getγfunc
 
     Gs = Vector{Vector{Vector{Int}}}(undef, 1)
+    rets = Vector{ALMSolutionType{T}}(undef, 1)
 
     # first run.
     iter = 1
     problem.γ = getγfunc(iter)
-
+# I am here return rets.
     G, ret = runconvexclustering(X0, Z0,
         problem, optim_config, assignment_config;
         store_trace = store_trace,
         report_cost = report_cost)
 
     Gs[begin] = G
+    rets[begin] = ret
 
     # keep running if too many parts in the returned partition G.
     while length(G) > max_partition_size && iter <= max_iters
@@ -49,23 +51,25 @@ function searchγ(X0::Matrix{T},
         iter += 1
         problem.γ = getγfunc(iter)
 
-        new_G, ret = runconvexclustering(X0, Z0,
+        new_G, new_ret = runconvexclustering(X0, Z0,
         problem, optim_config, assignment_config;
             store_trace = store_trace,
             report_cost = report_cost)
 
         if store_trace_assignments
             push!(Gs, new_G)
+            push!(rets, new_ret)
         else
             Gs[begin] = new_G
+            rets[begin] = new_ret
         end
 
         if length(new_G) < max_partition_size
-            return Gs, ret, iter
+            return Gs, rets, iter
         end
     end
 
-    return Gs, ret, iter
+    return Gs, rets, iter
 end
 
 

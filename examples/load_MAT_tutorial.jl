@@ -121,8 +121,8 @@ N_edges = length(edge_pairs)
 # If your problem doesn't get solved, you can always start another optimization run with the solution (X_star, Z_star) as the initial guess (X0, Z0).
 σ_base = 0.4
 σ_rate = 1.05
-cc_max_iters = 200 # the maximum number of ALM (outer optimization) iterations allowed.
-gap_tol = 1e-6 # stopping condition. should be close to zero for attaining close to the global minimum..
+cc_max_iters = 300 # the maximum number of ALM (outer optimization) iterations allowed.
+gap_tol = 1e-8 # stopping condition. should be close to zero for attaining close to the global minimum..
 
 updateσfunc = nn->σ_base*σ_rate^nn
 updateϵfunc = nn->1/(nn)^2
@@ -167,7 +167,7 @@ MAT.close(file)
 
 ###### cluster assignment given optimization solution.
 
-assignment_zero_tol = 1e-6 # shouldn't make this larger. Instead, change the optimization problem parameters γ, θ_w (or even use a different type of kernel function for kernelfunc), knn.
+assignment_zero_tol = 1e-3 # shouldn't make this larger. Instead, change the optimization problem parameters γ, θ_w (or even use a different type of kernel function for kernelfunc), knn.
 
 # G is the cluster assignments in terms of data point indices (column indices of A). Type: Vector{Vector{Int}}
 # if j == G[k][n], then it means the n-th data point in the k-th cluster is data point label j (i.e. the datapoint corresponding to the j-th column of A)

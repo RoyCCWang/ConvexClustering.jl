@@ -148,8 +148,8 @@ updateϵfunc = nn->1/(nn-1)^2
 #runoptimfunc = (xx,ff,dff,gg_tol)->runOptimjl(xx, ff, dff, gg_tol; verbose = true)
 
 # pick cc_max_iters such that updateσfunc(cc_max_iters) does not return a large value for σ.
-cc_max_iters = 200
-gap_tol = 1e-6 # stopping condition.
+cc_max_iters = 300
+gap_tol = 1e-8 # stopping condition.
 
 # initial guess. Must be finite-valued.
 X0 = zeros(Float64, D, N)
@@ -176,7 +176,7 @@ X_star, Z_star, num_iters_ran, gaps, trace = ret.X_star, ret.Z_star, ret.num_ite
 
 ###### cluster assignment.
 
-assignment_zero_tol = 1e-6
+assignment_zero_tol = 1e-3
 # G = ConvexClustering.assignviaBX(X_star, edge_pairs; zero_tol = assignment_zero_tol)
 G, g_neighbourhoods = ConvexClustering.assignviaX(X_star, metric;
     zero_tol = assignment_zero_tol)

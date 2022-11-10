@@ -3,10 +3,6 @@ import Distances
 import JLD
 using LinearAlgebra
 
-# include("../../src/ConvexClustering.jl")
-# import .ConvexClustering
-import ConvexClustering
-
 #import Optim
 #include("./helpers/optim.jl")
 
@@ -26,4 +22,13 @@ end
 function evalSqExpkernel(x::Vector{T}, z::Vector{T}, θ::T)::T where T <: AbstractFloat
     return exp(-θ*norm(x-z)^2)
 end
+
+function unitweight(x::Vector{T}, z::Vector{T}, θ::T)::T where T <: AbstractFloat
+    return 1.0
+end
+
 ###
+
+using Revise
+
+import ConvexClustering
