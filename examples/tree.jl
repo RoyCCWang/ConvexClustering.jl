@@ -140,13 +140,14 @@ Z0 = zeros(D, N_edges)
 
 ### run optimization.
 println("Timing: ")
-@time Gs, rets, iters_γ = ConvexClustering.searchγ(
+@time Gs, rets, γs = ConvexClustering.searchγ(
     X0, Z0, problem, optim_config, assignment_config, config_γ;
     store_trace = store_trace,
     store_trace_assignments = true,
     report_cost = report_cost)
 G = Gs[end]
 ret = rets[end]
+iters_γ = length(γs)
 
 successively_nested_partitions = all(ConvexClustering.isnestedsuccessively(Gs))
 @show successively_nested_partitions

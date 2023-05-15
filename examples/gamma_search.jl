@@ -124,11 +124,12 @@ Z0 = zeros(D, N_edges)
 ### optimization algorithm settings.
 
 ### run optimization.
-Gs, rets, iters_γ = ConvexClustering.searchγ(
+Gs, rets, γs = ConvexClustering.searchγ(
     X0, Z0, problem, optim_config, assignment_config, config_γ;
     store_trace = store_trace,
     report_cost = report_cost)
 G = Gs[end]
+iters_γ = length(γs)
 
 println("Are the returned partitions nested successively? ", all(ConvexClustering.isnestedsuccessively(Gs)))
 #=

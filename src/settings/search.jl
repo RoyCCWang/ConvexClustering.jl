@@ -5,20 +5,8 @@
 Search for the first `γ` such that the number of partitions (i.e., `length(G)`) is less than `max_partition_size`, given the search strategy in `getγfunc`: `iters -> γ`.
 
 ```
-searchγ(X0::Matrix{T},
-    Z0::Matrix{T},
-    problem::ProblemType{T},
-    optim_config::ALMConfigType{T},
-    assignment_config::AssignmentConfigType{T},
-    search_config::SearchγConfigType;
-    store_trace::Bool = true,
-    report_cost::Bool = true) where T <: AbstractFloat
-```
-
-Outputs:
-Gs, ret, iter
-"""
-function searchγ(X0::Matrix{T},
+searchγ(
+    X0::Matrix{T},
     Z0::Matrix{T},
     problem::ProblemType{T},
     optim_config::ALMConfigType{T},
@@ -26,7 +14,24 @@ function searchγ(X0::Matrix{T},
     search_config::SearchγConfigType;
     store_trace::Bool = true,
     store_trace_assignments::Bool = true,
-    report_cost::Bool = true) where T <: AbstractFloat
+    report_cost::Bool = true,
+    ) where T <: AbstractFloat
+```
+
+Outputs:
+Gs, ret, iter
+"""
+function searchγ(
+    X0::Matrix{T},
+    Z0::Matrix{T},
+    problem::ProblemType{T},
+    optim_config::ALMConfigType{T},
+    assignment_config::AssignmentConfigType{T},
+    search_config::SearchγConfigType;
+    store_trace::Bool = true,
+    store_trace_assignments::Bool = true,
+    report_cost::Bool = true,
+    ) where T <: AbstractFloat
 
     max_iters, max_partition_size, getγfunc = search_config.max_iters, search_config.max_partition_size, search_config.getγfunc
 
@@ -70,11 +75,11 @@ function searchγ(X0::Matrix{T},
         end
 
         if length(new_G) < max_partition_size
-            return Gs, rets, iter, γs
+            return Gs, rets, γs
         end
     end
 
-    return Gs, rets, iter, γs
+    return Gs, rets, γs
 end
 
 

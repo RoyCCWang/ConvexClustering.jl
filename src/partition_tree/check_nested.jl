@@ -37,7 +37,7 @@ Designed for use with the `Gs` returned output of `searchγ()`, or a similarly o
 
 Example:
 ```
-Gs, ret, iters_γ = ConvexClustering.searchγ(
+Gs, ret, γs = ConvexClustering.searchγ(
     X0, Z0, problem, optim_config, assignment_config, config_γ;
     store_trace = store_trace,
     report_cost = report_cost,
