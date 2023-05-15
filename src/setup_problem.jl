@@ -1,20 +1,21 @@
 
 """
-setupproblem(A_vecs::Vector{Vector{T}},
-    θ;
-    radius::T = -Inf,
-    knn::Int = 30,
+setupproblem(
+    A_vecs::Vector{Vector{T}},
+    θ,
+    connectivity::AbstractConnectivityType;
     kernelfunc::Function = (xx,zz,tt)->convert(T, exp(-tt*norm(xx-zz)^2)),
-    metric = Distances.Euclidean()) where T <: AbstractFloat
+    metric = Distances.Euclidean(),
+    ) where T <: AbstractFloat
 
 """
 function setupproblem(
     A_vecs::Vector{Vector{T}},
     θ,
-    connectivity::AbstractConnectivityType{ET};
+    connectivity::AbstractConnectivityType;
     kernelfunc::Function = (xx,zz,tt)->convert(T, exp(-tt*norm(xx-zz)^2)),
     metric = Distances.Euclidean(),
-    ) where {T <: AbstractFloat, ET}
+    ) where T <: AbstractFloat
 
     A = array2matrix(A_vecs)
     #D, N = size(A)
@@ -24,7 +25,13 @@ function setupproblem(
     N_edges = Graphs.ne(h)
 
     #eds = collect(edge for edge in Graphs.edges(h))
-    edge_pairs = collect( (Graphs.src(edge), Graphs.dst(edge)) for edge in Graphs.edges(h))
+    edge_pairs::Vector{Tuple{Int64, Int64}} = collect(
+        (
+            Graphs.src(edge),
+            Graphs.dst(edge)
+        )
+        for edge in Graphs.edges(h)
+    )
     @assert length(edge_pairs) == N_edges
 
     #J0 = Graphs.incidence_matrix(h; oriented = true)
@@ -34,7 +41,7 @@ function setupproblem(
     #norm(J*J' - L_G) # should be zero.
 
     wfunc = (xx,zz)->kernelfunc(xx,zz,θ)
-    w = computeweights(edge_pairs, A, wfunc)
+    w::Vector{T} = computeweights(edge_pairs, A, wfunc)
 
     return A, edge_pairs, w, neighbourhoods#, J, h
 end

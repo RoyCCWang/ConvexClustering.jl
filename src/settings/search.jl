@@ -101,11 +101,12 @@ A_neighbourhoods::?
 iter::Int
 """
 function searchkernelparameters(
+    ::Type{KT}, # type of the kernel hyperparameter θ.
     A_vecs::Vector{Vector{T}},
     config_θ::SearchθConfigType{T},
-    graph_config::WeightedGraphConfigType{ET};
+    graph_config::WeightedGraphConfigType;
     verbose::Bool = false
-    ) where {T <: AbstractFloat,ET}
+    ) where {T <: AbstractFloat,KT}
 
     max_iters, min_dynamic_range, getθfunc = config_θ.max_iters, config_θ.min_dynamic_range, config_θ.getθfunc
     connectivity, metric, kernelfunc = graph_config.connectivity, graph_config.metric, graph_config.kernelfunc
@@ -115,7 +116,7 @@ function searchkernelparameters(
     # first try.
     iter = 1
     θ = getθfunc(iter)
-    # θs::Vector{T} = collect( θ for _ = 1:1 ) # implement later, since the type of θ could be anything in the general kernel case.
+    θs::Vector{KT} = collect( θ for _ = 1:1 ) # diagnostics.
 
     A, edge_pairs, w, A_neighbourhoods = setupproblem(A_vecs, θ, connectivity;
         metric = metric,
@@ -134,7 +135,7 @@ function searchkernelparameters(
 
         w = computeweights(edge_pairs, A, wfunc)
 
-        # push!(θs, θ) # diagnostics.
+        push!(θs, θ) # diagnostics.
 
         if maximum(w) - minimum(w) > min_dynamic_range
             A, edge_pairs, w, A_neighbourhoods = setupproblem(A_vecs, θ, connectivity;
@@ -151,7 +152,7 @@ function searchkernelparameters(
     if verbose
         @show (iter, minimum(w), maximum(w), min_dynamic_range)
     end
-    return A, edge_pairs, w, A_neighbourhoods, iter
+    return A, edge_pairs, w, A_neighbourhoods, θs
 end
 
 

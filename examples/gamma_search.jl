@@ -97,9 +97,14 @@ verbose_kernel = true
 
 
 ### setup convex clustering problem.
-A, edge_pairs, w, A_neighbourhoods, iter_kernel = ConvexClustering.searchkernelparameters(
-    Δc_m, config_θ, graph_config; verbose = verbose_kernel)
-
+A, edge_pairs, w, A_neighbourhoods, θs = ConvexClustering.searchkernelparameters(
+    T,
+    Δc_m,
+    config_θ,
+    graph_config;
+    verbose = verbose_kernel,
+)
+iter_kernel = length(θs)
 length_scale = θ2lengthscale( getθfunc(iter_kernel) )
 println("Starting length scale: ", getθfunc(1))
 println("resulting length scale: ", length_scale)

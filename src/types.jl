@@ -15,6 +15,13 @@ end
 #
 abstract type AbstractSearchConnectivityType{T<:Real} <: AbstractConnectivityType{T} end
 
+### graph creation for setting up the convex clustering problem.
+struct WeightedGraphConfigType{T, CT<:AbstractConnectivityType}
+    connectivity::CT
+    metric::Distances.Metric
+    kernelfunc::Function
+end
+
 mutable struct KNNSearchType <: AbstractSearchConnectivityType{Int}
     knn::Int # search result.
     const searchfunc::Function # (X::Matrix{T2<:AbstractFloat}, metric::Distances.Metric) ↦ neighbourhoods::Vector{Vector{int}}
@@ -68,12 +75,6 @@ function RadiusSearchType(radius::T,
     return RadiusSearchType(radius, searchfunc)
 end
 
-### graph creation for setting up the convex clustering problem.
-struct WeightedGraphConfigType{T}
-    connectivity::AbstractConnectivityType{T}
-    metric::Distances.Metric
-    kernelfunc::Function
-end
 
 ### assignment algorithm config.
 struct AssignmentConfigType{T}
