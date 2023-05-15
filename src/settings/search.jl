@@ -32,6 +32,7 @@ function searchγ(X0::Matrix{T},
 
     Gs = Vector{Vector{Vector{Int}}}(undef, 1)
     rets = Vector{ALMSolutionType{T}}(undef, 1)
+    γs = Vector{T}(undef, 1)
 
     # first run.
     iter = 1
@@ -44,6 +45,7 @@ function searchγ(X0::Matrix{T},
 
     Gs[begin] = G
     rets[begin] = ret
+    γs[begin] = problem.γ
 
     # keep running if too many parts in the returned partition G.
     while length(G) > max_partition_size && iter <= max_iters
@@ -54,22 +56,25 @@ function searchγ(X0::Matrix{T},
         new_G, new_ret = runconvexclustering(X0, Z0,
         problem, optim_config, assignment_config;
             store_trace = store_trace,
-            report_cost = report_cost)
+            report_cost = report_cost,
+        )
 
         if store_trace_assignments
             push!(Gs, new_G)
             push!(rets, new_ret)
+            push!(γs, problem.γ)
         else
             Gs[begin] = new_G
             rets[begin] = new_ret
+            γs[begin] = problem.γ
         end
 
         if length(new_G) < max_partition_size
-            return Gs, rets, iter
+            return Gs, rets, iter, γs
         end
     end
 
-    return Gs, rets, iter
+    return Gs, rets, iter, γs
 end
 
 
@@ -109,7 +114,8 @@ function searchkernelparameters(
 
     # first try.
     iter = 1
-    θ::T = getθfunc(iter)
+    θ = getθfunc(iter)
+    # θs::Vector{T} = collect( θ for _ = 1:1 ) # implement later, since the type of θ could be anything in the general kernel case.
 
     A, edge_pairs, w, A_neighbourhoods = setupproblem(A_vecs, θ, connectivity;
         metric = metric,
@@ -127,6 +133,8 @@ function searchkernelparameters(
         wfunc = (xx,zz)->kernelfunc(xx,zz,θ)
 
         w = computeweights(edge_pairs, A, wfunc)
+
+        # push!(θs, θ) # diagnostics.
 
         if maximum(w) - minimum(w) > min_dynamic_range
             A, edge_pairs, w, A_neighbourhoods = setupproblem(A_vecs, θ, connectivity;

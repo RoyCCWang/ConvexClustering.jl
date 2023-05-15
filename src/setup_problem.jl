@@ -8,11 +8,13 @@ setupproblem(A_vecs::Vector{Vector{T}},
     metric = Distances.Euclidean()) where T <: AbstractFloat
 
 """
-function setupproblem(A_vecs::Vector{Vector{T}},
+function setupproblem(
+    A_vecs::Vector{Vector{T}},
     θ,
     connectivity::AbstractConnectivityType{ET};
     kernelfunc::Function = (xx,zz,tt)->convert(T, exp(-tt*norm(xx-zz)^2)),
-    metric = Distances.Euclidean()) where {T <: AbstractFloat, ET}
+    metric = Distances.Euclidean(),
+    ) where {T <: AbstractFloat, ET}
 
     A = array2matrix(A_vecs)
     #D, N = size(A)
@@ -40,8 +42,19 @@ end
 """
 setupproblem(A_vecs::Vector{Vector{T}}, θ, config::WeightedGraphConfigType{ET}) where {T <: AbstractFloat, ET}
 """
-function setupproblem(A_vecs::Vector{Vector{T}}, θ, config::WeightedGraphConfigType{ET}) where {T <: AbstractFloat, ET}
-    return setupproblem(A_vecs, θ, config.connectivity; metric = config.metric, kernelfunc = config.kernelfunc)
+function setupproblem(
+    A_vecs::Vector{Vector{T}},
+    θ,
+    config::WeightedGraphConfigType{ET},
+    ) where {T <: AbstractFloat, ET}
+
+    return setupproblem(
+        A_vecs,
+        θ,
+        config.connectivity;
+        metric = config.metric,
+        kernelfunc = config.kernelfunc,
+    )
 end
 
 function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
