@@ -150,7 +150,7 @@ function searchkernelparameters(
             if verbose
                 @show (iter, θ, minimum(w), maximum(w), min_dynamic_range)
             end
-            return A, edge_pairs, w, A_neighbourhoods, iter
+            return A, edge_pairs, w, A_neighbourhoods, θs
         end
     end
 
