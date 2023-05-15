@@ -16,7 +16,7 @@ end
 abstract type AbstractSearchConnectivityType{T<:Real} <: AbstractConnectivityType{T} end
 
 ### graph creation for setting up the convex clustering problem.
-struct WeightedGraphConfigType{T, CT<:AbstractConnectivityType}
+struct WeightedGraphConfigType{CT<:AbstractConnectivityType}
     connectivity::CT
     metric::Distances.Metric
     kernelfunc::Function
