@@ -3,6 +3,9 @@ import Distances
 import JLD
 using LinearAlgebra
 
+import Random
+using BenchmarkTools
+
 #import Optim
 #include("./helpers/optim.jl")
 
@@ -29,6 +32,12 @@ end
 
 ###
 
+import SingleLinkagePartitions
+const SL = SingleLinkagePartitions
+
+include("./helpers/data.jl")
+
 using Revise
 
 import ConvexClustering
+CC = ConvexClustering

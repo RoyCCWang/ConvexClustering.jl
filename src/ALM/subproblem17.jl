@@ -1,14 +1,14 @@
 # Equation 17 and related discussions in section 5.3. (Sun, JMLR 2011).
 # We focus on ϕ and dϕ_dx in our work.
 
-function evalϕ(X, Z, w, J, σ, γ::T, A)::T where T <: AbstractFloat
+# function evalϕ(X, Z, w, J, σ, γ::T, A)::T where T <: AbstractFloat
 
-    term_X = evalϕX(X, Z, w, J, σ, γ)
+#     term_X = evalϕX(X, Z, w, J, σ, γ)
 
-    term_rest = -dot(Z,Z)/(2*σ)
+#     term_rest = -dot(Z,Z)/(2*σ)
 
-    return term_X + term_rest
-end
+#     return term_X + term_rest
+# end
 
 """
 Evaluates the terms of ϕ(X) in sec 5.3 of (Sun, JMLR 2021).
@@ -99,9 +99,16 @@ function computedϕ(X::Matrix{T}, Z::Matrix{T}, J, w::Vector{T}, A::Matrix{T},
 end
 
 
-function computedϕ!(out::Matrix{T},
-    X::Matrix{T}, P2::Matrix{T}, A::Matrix{T},
-    src_nodes::Vector{Int}, dest_nodes::Vector{Int}, σ::T) where T
+function computedϕ!(
+    out::Matrix{T},
+    X::Matrix{T},
+    P2::Matrix{T},
+    A::Matrix{T},
+    # src_nodes::Vector{Int},
+    # dest_nodes::Vector{Int},
+    edges::Vector{Tuple{Int,Int}},
+    σ::T,
+    ) where T
 
     @assert size(X) == size(A) == size(out)
 
@@ -111,16 +118,18 @@ function computedϕ!(out::Matrix{T},
     end
 
     # σ*proxconj_V*J'. see applyJt!(), but no fill!(out, 0).
-    for l in eachindex(src_nodes)
-        src = src_nodes[l]
+    #for l in eachindex(src_nodes)
+        #src = src_nodes[l]
+    for l in eachindex(edges)
+        src, dest = edges[l]
 
         for d in axes(out,1)
             out[d,src] += P2[d,l]*σ
         end
-    end
+    #end
 
-    for l in eachindex(dest_nodes)
-        dest = dest_nodes[l]
+    #for l in eachindex(dest_nodes)
+        #dest = dest_nodes[l]
 
         for d in axes(out,1)
             out[d,dest] -= P2[d,l]*σ
@@ -130,9 +139,15 @@ function computedϕ!(out::Matrix{T},
     return nothing
 end
 
-function computedϕgivenproximaltp!(out::Matrix{T},
-    X::Matrix{T}, V::Matrix{T}, prox_V::Matrix{T}, A::Matrix{T},
-    src_nodes::Vector{Int}, dest_nodes::Vector{Int}, σ::T) where T
+function computedϕgivenproximaltp!(
+    out::Matrix{T},
+    X::Matrix{T},
+    V::Matrix{T},
+    prox_V::Matrix{T},
+    A::Matrix{T},
+    edges::Vector{Tuple{Int,Int}},
+    σ::T,
+    ) where T
 
     @assert size(X) == size(A) == size(out)
 
@@ -142,16 +157,18 @@ function computedϕgivenproximaltp!(out::Matrix{T},
     end
 
     # σ*proxconj_V*J'. see applyJt!(), but no fill!(out, 0).
-    for l in eachindex(src_nodes)
-        src = src_nodes[l]
+    # for l in eachindex(src_nodes)
+    #     src = src_nodes[l]
+    for l in eachindex(edges)
+        src, dest = edges[l]
 
         for d in axes(out,1)
             out[d,src] += (V[d,l]-prox_V[d,l])*σ
         end
-    end
+    # end
 
-    for l in eachindex(dest_nodes)
-        dest = dest_nodes[l]
+    # for l in eachindex(dest_nodes)
+    #     dest = dest_nodes[l]
 
         for d in axes(out,1)
             out[d,dest] -= (V[d,l]-prox_V[d,l])*σ
@@ -163,11 +180,14 @@ end
 
 ## Mutates V, BX.
 # All arrays must use the same indexing scheme.
-function computeV!(V::Matrix{T}, BX::Matrix{T},
+function computeV!(
+    V::Matrix{T},
+    BX::Matrix{T},
     X::Matrix{T},
     Z::Matrix{T},
     λ::T,
-    edge_pairs::Vector{Tuple{Int,Int}}) where T <: AbstractFloat
+    edge_pairs::Vector{Tuple{Int,Int}},
+    ) where T <: AbstractFloat
 
     evalB!(BX, X, edge_pairs)
 
@@ -178,11 +198,13 @@ function computeV!(V::Matrix{T}, BX::Matrix{T},
     return nothing
 end
 
-function computeV!(V::Matrix{T},
+function computeV!(
+    V::Matrix{T},
     X::Matrix{T},
     Z::Matrix{T},
     λ::T,
-    edge_pairs::Vector{Tuple{Int,Int}}) where T <: AbstractFloat
+    edge_pairs::Vector{Tuple{Int,Int}},
+    ) where T <: AbstractFloat
 
     D, N = size(X)
     N_edges = length(edge_pairs)
@@ -210,87 +232,101 @@ function computeV(X::Matrix{T}, Z, λ::T, edge_pairs) where T <: AbstractFloat
     return V
 end
 
-# step 2 of algorithm 1 in (Sun, JMLR 2021)
-function computeU!(U::Matrix{T}, # mutated output
-    BX::Matrix{T}, V::Matrix{T}, # buffers
-    X::Matrix{T}, Z::Matrix{T}, # inputs
-    w::Vector{T},
-    γ::T,
-    λ::T,
-    edge_pairs::Vector{Tuple{Int,Int}}) where T <: AbstractFloat
-
-    D, N = size(X)
-    N_edges = length(edge_pairs)
-
-    @assert size(V) == (D,N_edges) == size(Z) == size(BX)
-
-    # update V, BX given X, Z.
-    computeV!(V, BX,
-        X, Z, λ, edge_pairs)
-
-    # the update for U is prox_V. See text near quation 20 in (Sun, JMLR 2021).
-    proximaltp!(U, V, w, γ, λ)
-
-    return nothing
-end
-
-
 ##### for optim
 
 
-# input buffers are on the first line of function inputs.
-# σ_in can be a Base.RefValue{T} or σ::T itself. Either way `σ::T = convert(T, σ_in[])` would work.
-function compteϕXoptim!(V::Matrix{T}, prox_V::Matrix{T}, proxconj_V::Matrix{T},
-    X::Matrix{T}, Z::Matrix{T}, σ_in,
-    A::Matrix{T}, w::Vector{T}, γ::T, edge_pairs::Vector{Tuple{Int,Int}})::T where T <: AbstractFloat
+# function compteϕXoptim!(
+#     #V::Matrix{T},
+#     #prox_V::Matrix{T},
+#     #proxconj_V::Matrix{T},
+#     reg::RegularizationBuffer,
+#     X::Matrix{T},
+#     #Z::Matrix{T},
+#     σ_buffer::Vector{T},
+#     #A::Matrix{T},
+#     #w::Vector{T},
+#     #γ::T,
+#     #edge_pairs::Vector{Tuple{Int,Int}},
+#     #edge_set::EdgeFormulation,
+#     problem::ProblemType,
+#     )::T where T <: AbstractFloat
 
-    σ::T = convert(T, σ_in[])
-    λ::T = one(T)/σ
+#     A, γ, E = unpackspecs(problem)
 
-    #
-    #evalB!(BX, X, edge_pairs)
-    computeV!(V, X, Z, λ, edge_pairs)
-    proximaltp!(prox_V, V, w, γ, λ)
-    p_prox_V = evalp(prox_V, w, γ)
+#     V, prox_V = reg.V, reg.prox_V
+#     σ = σ_buffer[begin]
+#     λ = one(T)/σ
 
-    # proximaltpconjgivenproximaltp!(proxconj_V, V, prox_V)
-    # term3 = (σ/2) * norm(proxconj_V, 2)^2
-    term3 = (σ/2)*(dot(V,V) + dot(prox_V,prox_V) - 2*dot(prox_V,V))
-    #term3 = (σ/2)*norm(V-prox_V,2)^2
+#     #
+#     ##computeV!(V, X, Z, λ, edge_pairs)
+#     #computeV!(V, X, Z, λ, info)
+#     #proximaltp!(prox_V, V, w, γ, λ)
+#     #p_prox_V = evalp(prox_V, w, γ)
+#     computeV!(reg, X, λ, E)
+#     proximaltp!(prox_V, V, E.w, γ, λ)
+#     p_prox_V = evalp(prox_V, w, γ)
 
-    term1 = (dot(X,X) + dot(A,A) - 2*dot(X,A))/2 # norm(X-A,2)^2
+#     # proximaltpconjgivenproximaltp!(proxconj_V, V, prox_V)
+#     # term3 = (σ/2) * norm(proxconj_V, 2)^2
+#     term3 = (σ/2)*(dot(V,V) + dot(prox_V,prox_V) - 2*dot(prox_V,V))
+#     #term3 = (σ/2)*norm(V-prox_V,2)^2
 
-    return term1 + p_prox_V + term3
-end
+#     term1 = (dot(X,X) + dot(A,A) - 2*dot(X,A))/2 # norm(X-A,2)^2
+
+#     # the dot(Z,Z) term is a constant with respect to X. It is not computed.
+
+#     return term1 + p_prox_V + term3
+# end
 
 # input buffers (gets mutated) on the second line of function inputs.
-function computedϕoptim!(grad::Vector{T},
-    V::Matrix{T}, prox_V::Matrix{T}, proxconj_V::Matrix{T}, grad_mat::Matrix{T},
-    X::Matrix{T}, Z::Matrix{T}, σ_in,
-    A::Matrix{T}, w::Vector{T}, γ::T, edge_pairs::Vector{Tuple{Int,Int}},
-    src_nodes::Vector{Int}, dest_nodes::Vector{Int}) where T <: AbstractFloat
+# function computedϕoptim!(
+#     grad::Vector{T},
+#     #V::Matrix{T},
+#     #prox_V::Matrix{T},
+#     ##proxconj_V::Matrix{T},
+#     reg::RegularizationBuffer,
+#     grad_mat::Matrix{T},
+#     X::Matrix{T},
+#     #Z::Matrix{T},
+#     σ_buffer::Vector{T},
+#     #A::Matrix{T}, w::Vector{T}, γ::T,
+#     problem::ProblemType,
+#     #edge_pairs::Vector{Tuple{Int,Int}},
+#     #E::EdgeFormulation,
+#     ) where T <: AbstractFloat
 
-    σ::T = convert(T, σ_in[])
-    λ::T = one(T)/σ
+#     A, γ, E = unpackspecs(problem)
 
-    ## set up.
-    #evalB!(BX, X, edge_pairs)
-    computeV!(V, X, Z, λ, edge_pairs)
-    proximaltp!(prox_V, V, w, γ, λ)
+#     Z, V, prox_V = reg.Z, reg.V, reg.prox_V
+#     σ = σ_buffer[begin]
+#     λ = one(T)/σ
 
-    ## gradient.
-    # proximaltpconjgivenproximaltp!(proxconj_V, V, prox_V)
-    # computedϕ!(grad_mat, X, proxconj_V, A, src_nodes, dest_nodes, σ)
-    computedϕgivenproximaltp!(grad_mat, X, V, prox_V, A,
-        src_nodes, dest_nodes, σ) # faster.
+#     ## set up.
+#     #computeV!(V, X, Z, λ, edge_pairs)
+#     computeV!(reg, X, λ, E)
+#     proximaltp!(prox_V, V, w, γ, λ)
 
-    # parse.
-    for i in eachindex(grad_mat)
-        grad[i] = grad_mat[i]
-    end
+#     ## gradient.
+#     # proximaltpconjgivenproximaltp!(proxconj_V, V, prox_V)
+#     # computedϕ!(grad_mat, X, proxconj_V, A, src_nodes, dest_nodes, σ)
+#     computedϕgivenproximaltp!(
+#         grad_mat,
+#         X,
+#         V,
+#         prox_V,
+#         A,
+#         E.edges,
+#         #edge_pairs,
+#         σ,
+#     ) # faster.
 
-    return nothing
-end
+#     # parse.
+#     for i in eachindex(grad_mat)
+#         grad[i] = grad_mat[i]
+#     end
+
+#     return nothing
+# end
 
 # # see https://julianlsolvers.github.io/Optim.jl/ under "Getting Better Performance" for usage case.
 # # input buffers (gets mutated) on the second line of function inputs.

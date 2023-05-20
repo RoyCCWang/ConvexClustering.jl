@@ -28,8 +28,13 @@ function proximaltp(U::Matrix{T}, W::Vector{T}, γ::T, s::T) where T
 end
 
 # faster version and in-place version of proximaltp().
-function proximaltp!(K::Matrix{T},
-    U::Matrix{T}, w::Vector{T}, γ::T, s::T) where T
+function proximaltp!(
+    K::Matrix{T},
+    U::Matrix{T},
+    w::Vector{T},
+    γ::T,
+    s::T,
+    ) where T
 
     @assert length(w) == size(U,2)
     @assert size(K) == size(U)
@@ -48,7 +53,7 @@ function proximaltp!(K::Matrix{T},
         end
     end
 
-    return K
+    return nothing #K
 end
 
 """

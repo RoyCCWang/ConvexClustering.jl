@@ -8,14 +8,14 @@ Search for the first `γ` such that the number of partitions (i.e., `length(G)`)
 searchγ(
     X0::Matrix{T},
     Z0::Matrix{T},
-    problem::ProblemType{T},
+    problem::ProblemType{T,ET},
     optim_config::ALMConfigType{T},
     assignment_config::AssignmentConfigType{T},
     search_config::SearchγConfigType;
     store_trace::Bool = true,
     store_trace_assignments::Bool = true,
     report_cost::Bool = true,
-    ) where T <: AbstractFloat
+    ) where {T <: AbstractFloat, ET <: EdgeFormulation}
 ```
 
 Outputs:
@@ -24,14 +24,14 @@ Gs, ret, iter
 function searchγ(
     X0::Matrix{T},
     Z0::Matrix{T},
-    problem::ProblemType{T},
+    problem_in::ProblemType{T,ET},
     optim_config::ALMConfigType{T},
     assignment_config::AssignmentConfigType{T},
     search_config::SearchγConfigType;
     store_trace::Bool = true,
     store_trace_assignments::Bool = true,
     report_cost::Bool = true,
-    ) where T <: AbstractFloat
+    ) where {T <: AbstractFloat, ET <: EdgeFormulation}
 
     max_iters, max_partition_size, getγfunc = search_config.max_iters, search_config.max_partition_size, search_config.getγfunc
 
@@ -41,7 +41,9 @@ function searchγ(
 
     # first run.
     iter = 1
-    problem.γ = getγfunc(iter)
+    γ = getγfunc(iter)
+    problem = copywithγ(problem_in, γ)
+
 # I am here return rets.
     G, ret = runconvexclustering(X0, Z0,
         problem, optim_config, assignment_config;
@@ -50,13 +52,14 @@ function searchγ(
 
     Gs[begin] = G
     rets[begin] = ret
-    γs[begin] = problem.γ
+    γs[begin] = γ
 
     # keep running if too many parts in the returned partition G.
     while length(G) > max_partition_size && iter <= max_iters
 
         iter += 1
-        problem.γ = getγfunc(iter)
+        γ = getγfunc(iter)
+        problem = copywithγ(problem_in, γ)
 
         new_G, new_ret = runconvexclustering(X0, Z0,
         problem, optim_config, assignment_config;
@@ -67,11 +70,11 @@ function searchγ(
         if store_trace_assignments
             push!(Gs, new_G)
             push!(rets, new_ret)
-            push!(γs, problem.γ)
+            push!(γs, γ)
         else
             Gs[begin] = new_G
             rets[begin] = new_ret
-            γs[begin] = problem.γ
+            γs[begin] = γ
         end
 
         if length(new_G) < max_partition_size

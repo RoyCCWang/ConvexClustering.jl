@@ -82,6 +82,8 @@ struct AssignmentConfigType{T}
     assignment_zero_tol::T
 end
 
+### problem hyperparameters
+
 ### ALM optimization algorithm config type.
 struct ALMConfigType{T}
     runoptimfunc::Function
@@ -137,109 +139,276 @@ function ALMConfigType(gap_tol::T;
         max_iters, gap_tol)
 end
 
-### convex clustering problem config.
-mutable struct ProblemType{T}
-    A::Matrix{T}
-    γ::T
+
+
+#### for use with subroutines called by runALM().
+
+abstract type OperationTrait end
+struct Conventional <: OperationTrait end
+struct CoClustering <: OperationTrait end
+
+abstract type EdgeFormulation end
+
+struct EdgeSet{T} <: EdgeFormulation
     w::Vector{T}
-    edge_pairs::Vector{Tuple{Int,Int}}
+    edges::Vector{Tuple{Int,Int}}
 end
 
+function getNedges(A::EdgeSet)::Int
+    return length(A.edges)
+end
+
+struct CoEdgeSet{T} <: EdgeFormulation
+    col::EdgeSet{T}
+    row::EdgeSet{T}
+end
+
+function getNedges(A::CoEdgeSet)::Int
+    return getNedges(A.col) + getNedges(A.row)
+end
+
+# traits.
+function traitof(::EdgeSet)
+    return Conventional()
+end
+
+function traitof(::CoEdgeSet)
+    return CoClustering()
+end
+
+### convex clustering problem config. User-facing.
+struct ProblemType{T, ET <: EdgeFormulation} # basic partition problem: no co-clustering.
+    A::Matrix{T}
+    γ::T
+    edge_set::ET # diagnose why this is so slow.
+end
+
+# utilities.
+function copywithγ(p::ProblemType{T,ET}, γ::T)::ProblemType{T,ET} where {T,ET}
+    return ProblemType(p.A, γ, p.edge_set)
+end
+
+function unpackspecs(p::ProblemType{T,ET})::Tuple{Matrix{T},T,ET} where {T,ET}
+    return p.A, p.γ, p.edge_set
+end
+
+# conventional clustering.
+function ProblemType(
+    A::Matrix{T},
+    γ::T,
+    w::Vector{T},
+    edges::Vector{Tuple{Int,Int}},
+    )::ProblemType{T,EdgeSet{T}} where T
+
+    return ProblemType(A, γ, EdgeSet(w, edges))
+end
+
+# co-clustering.
+function ProblemType(
+    A::Matrix{T},
+    γ::T,
+    w_col::Vector{T},
+    w_row::Vector{T},
+    col_edges::Vector{Tuple{Int,Int}},
+    row_edges::Vector{Tuple{Int,Int}},
+    )::ProblemType{T,CoEdgeSet{T}} where T
+
+    return ProblemType(
+        A,
+        γ,
+        CoEdgeSet(
+            EdgeSet(w_col, col_edges),
+            EdgeSet(w_row, row_edges),
+        ),
+    )
+end
+
+
+
+
+### duality gap-related buffers.
+struct DualityGapBuffer{T}
+    # reuse buffers from ϕ or dϕ for primal, dual, primal_dual gap calculation.
+    # this is possible because no ϕ and dϕ evaluations are occuring in the gap calculations.
+    U::Matrix{T} # D by N_edges
+    BX::Matrix{T} # D by N_edges
+    prox_U_plus_Z::Matrix{T} # D by N_edges
+    U_plus_Z::Matrix{T} # D by N_edges
+
+    BadjZ::Matrix{T} # D by N.
+end
+
+function DualityGapBuffer(::Type{T}, D::Integer, N::Integer, N_edges::Integer)::DualityGapBuffer{T} where T
+    DualityGapBuffer(
+        Matrix{T}(undef, D, N_edges),
+        Matrix{T}(undef, D, N_edges),
+        Matrix{T}(undef, D, N_edges),
+        Matrix{T}(undef, D, N_edges),
+        Matrix{T}(undef, D, N),
+    )
+end
+
+function unpackbuffer(A::DualityGapBuffer)
+    #
+    return A.U, A.BX, A.prox_U_plus_Z, A.U_plus_Z, A.BadjZ
+end
+
+### edge-related buffers
+
+abstract type RegularizationBuffer end
+
+# the B map is from Eq. 7 from (Sun, 2021).
+struct BMapBuffer{T} <: RegularizationBuffer
+
+    # variables.
+    Z::Matrix{T} # the set of dual vairables. size D by N_edges
+    U::Matrix{T} # a subset of the primal variables. size D by N_edges
+
+    # buffers for evaluating the subproblem.
+    V::Matrix{T} # size D by N_edges
+    prox_V::Matrix{T} # size D by N_edges
+    prox_conj_V::Matrix{T} # size D by N_edges. use only in fdf!()
+
+    # reuse buffers from ϕ or dϕ for primal, dual, primal_dual gap calculation.
+    # this is possible because no ϕ and dϕ evaluations are occuring in the gap calculations.
+    residual::DualityGapBuffer{T}
+end
+
+# creates a copy of Z0.
+function BMapBuffer(Z0::Matrix{T}, N::Integer)::BMapBuffer{T} where T
+
+    D, N_edges = size(Z0)
+
+    return BMapBuffer(
+        copy(Z0),
+        Matrix{T}(undef, D, N_edges),
+        Matrix{T}(undef, D, N_edges),
+        Matrix{T}(undef, D, N_edges),
+        Matrix{T}(undef, D, N_edges),
+        DualityGapBuffer(T, D, N, N_edges)
+    )
+end
+
+struct CoBMapBuffer{T} <: RegularizationBuffer
+    col::BMapBuffer{T}
+    row::BMapBuffer{T}
+end
+
+function getZbuffer(::Conventional, Z0::Matrix{T}, N::Integer)::BMapBuffer{T} where T
+    return BMapBuffer(Z0, N)
+end
+
+function getZbuffer(::CoClustering, Z0::Matrix{T}, N::Integer)::CoBMapBuffer{T} where T
+
+    return CoBMapBuffer(
+        BMapBuffer(Z0, N),
+        BMapBuffer(Z0, N),
+    )
+end
 
 ### trace diagonistics to the ALM.
 
-"""
-Summary
-≡≡≡≡≡≡≡≡≡
-
-struct TraceType{T}
-
-
-Fields
-≡≡≡≡≡≡≡≡
-
-gaps            :: Vector{Vector{T}}
-problem_cost    :: Vector{T}
-diff_x          :: Vector{T}
-diff_Z          :: Vector{T}
-
-Structure fields, in order of definition:
-
-- `gaps::Vector{Vector{T}}`: The residual gaps of each iteration.
-    gaps[1] is the primal gap.
-    gaps[2] is the dual gap.
-    gaps[3] is the primal-dual gap.
-    These are related to the KKT conditions of the optimization problem. See the discussion on `η_P`, `η_D`, and `η` in section 6 from (Sun, 2021):
-    `Sun, D., Toh, K. C., & Yuan, Y. (2021). Convex Clustering: Model, Theoretical Guarantee and Efficient Algorithm. J. Mach. Learn. Res., 22(9), 1-32.`
-
-- `problem_cost::Vector{T}`: The cost of the standard formulation of the convex clustering problem. See equation 2 from (Sun, 2021).
-
-- `diff_x::Vector{T}`: The change in the solution iterates for the primal variable.
-
-- `diff_Z::Vector{T}`: The change in the solution iterates for the dual variable.
-"""
-struct TraceType{T}
+struct TraceType{T}#, VT <: TraceVariableContainer}
     gaps::Vector{Vector{T}}
     problem_cost::Vector{T}
     diff_x::Vector{T}
-    diff_Z::Vector{T}
+    #dual_var::VT
+    diff_Z::Vector{Vector{T}}
 end
 
-function TraceType(N::Int, val::T) where T <: AbstractFloat
+function TraceType(::Conventional, ::Type{T}, N::Int)::TraceType{T} where T <: AbstractFloat
 
     gaps = Vector{Vector{T}}(undef, N)
     poblem_cost = Vector{T}(undef, N)
     diff_x = Vector{T}(undef, N)
-    diff_Z = Vector{T}(undef, N)
+    diff_Z = collect( Vector{T}(undef, N) for _ = 1:1 )
 
     return TraceType(gaps, poblem_cost, diff_x, diff_Z)
 end
 
-function resizetrace!(trace::TraceType{T}, iter::Int) where T <: AbstractFloat
+function TraceType(::CoClustering, ::Type{T}, N::Int)::TraceType{T} where T <: AbstractFloat
+
+    gaps = Vector{Vector{T}}(undef, N)
+    poblem_cost = Vector{T}(undef, N)
+    diff_x = Vector{T}(undef, N)
+    diff_Z = collect( Vector{T}(undef, N) for _ = 1:2 )
+
+    return TraceType(gaps, poblem_cost, diff_x, diff_Z)
+end
+
+function resizetrace!(trace::TraceType{T}, ::Conventional, iter::Int) where T <: AbstractFloat
     @assert length(trace.gaps) == length(trace.problem_cost)
 
     resize!(trace.gaps, iter)
     resize!(trace.problem_cost, iter)
     resize!(trace.diff_x, iter)
-    resize!(trace.diff_Z, iter)
+    
+    resize!(trace.diff_Z[begin], iter)
+
+    return nothing
+end
+
+function resizetrace!(trace::TraceType{T}, ::CoClustering, iter::Int) where T <: AbstractFloat
+    @assert length(trace.gaps) == length(trace.problem_cost)
+
+    resize!(trace.gaps, iter)
+    resize!(trace.problem_cost, iter)
+    resize!(trace.diff_x, iter)
+    
+    resize!(trace.diff_Z[begin], iter)
+    resize!(trace.diff_Z[begin+1], iter)
+
+    return nothing
+end
+
+function storetrace!(
+    trace::TraceType{T},
+    current::BMapBuffer,
+    prev::BMapBuffer,
+    iter::Integer;
+    ind_Z::Integer = 1, # The index to save the dual var difference, diff_Z, to. 1 for the column edge constraints, 2 for the row edge constraints.
+    ) where T
+    
+    trace.diff_Z[ind_Z][iter] = evalnorm2sq(prev.Z, current.Z)
+    prev.Z[:] = current.Z
+
+    return nothing
+end
+
+function storetrace!(
+    trace::TraceType{T},
+    current::CoBMapBuffer,
+    prev::CoBMapBuffer,
+    iter::Integer,
+    ) where T
+
+    storetrace!(trace, current.col, prev.col, iter; ind_Z = 1)
+    storetrace!(trace, current.row, prev.row, iter; ind_Z = 2)
 
     return nothing
 end
 
 ### solution data structure for the ALM algorithm.
-"""
-Summary
-≡≡≡≡≡≡≡≡≡
 
-struct ALMSolutionType{T}
+# abstract type AuxiliaryVariable end
 
+# struct ALMDualVar{T} <: AuxiliaryVariable
+#     Z::Vector{T}
+# end
 
-Fields
-≡≡≡≡≡≡≡≡
+# struct ALMCoDualVar{T} <: AuxiliaryVariable
+#     col::DualVar{T}
+#     row::DualVar{T}
+# end
 
-X_star          :: Matrix{T}
-Z_star          :: Matrix{T}
-num_iters_ran   :: Int
-gaps            :: Vector{T}
-trace           :: TraceType{T}
-
-Structure fields, in order of definition:
-- `X_star::Matrix{T}`: optimization solution for the primal variable. The `n`-th column of `X_star` is the partition center of the `n`-th column of `A`.
-- `Z_star::Matrix{T}`: optimization solution for the dual variable.
-- 'iter::Int`: the number of iterations ran in the outer optimization.
-- `gaps::Vector{T}`:
-    gaps[1] is the primal gap of the solution
-- `trace`: diagnostic information. See `TraceType{T}`.
-X_star, Z, iter, gaps, ϕ, dϕ!, trace
-"""
 struct ALMSolutionType{T}
     X_star::Matrix{T}
-    Z_star::Matrix{T}
+    #aux_star::DT
+    Z_star::Vector{Matrix{T}}
     num_iters_ran::Int
     gaps::Vector{T}
     trace::TraceType{T}
 end
-
 
 ### search sequence regularizer γ, config.
 struct SearchγConfigType
@@ -248,45 +417,9 @@ struct SearchγConfigType
     getγfunc::Function # iteration_number::Int ↦ γ::T
 end
 
-#= """
-```
-makegeometricγconfig(γ_base::T,
-    max_partition_size::Int;
-    γ_rate::T = 1.05,
-    max_iters::Int = 100)::SearchγConfigType where T
-```
-"""
-function makegeometricγconfig(γ_base::T,
-    max_partition_size::Int;
-    γ_rate::T = 1.05,
-    max_iters::Int = 100)::SearchγConfigType where T
-
-    getγfunc = nn->evalgeometricsequence(nn, γ_base, γ_rate)
-
-    return SearchγConfigType(max_iters, max_partition_size, getγfunc)
-end =#
-
 ### search sequence for kernel parameter, config.
 struct SearchθConfigType{T}
     max_iters::Int
     min_dynamic_range::T
     getθfunc::Function # # iteration_number::Int ↦ θ, whatever datatype θ is.
 end
-
-#= """
-```
-makeθlengthscaleconfig(length_scale_base::T,
-    min_dynamic_range::T; # takes a positive, finite, non-zero real number. Must be in the range of the weight function.
-    length_scale_rate::T = 1.05,
-    max_iters::Int = 100)::SearchθConfigType{T} where T
-```
-"""
-function makeθlengthscaleconfig(length_scale_base::T,
-    min_dynamic_range::T; # takes a positive, finite, non-zero real number. Must be in the range of the weight function.
-    length_scale_rate::T = 1.05,
-    max_iters::Int = 10000)::SearchθConfigType{T} where T
-
-    getθfunc = nn->lengthscale2θ(evalgeometricsequence(nn, length_scale_base, length_scale_rate))
-
-    return SearchθConfigType(max_iters, min_dynamic_range, getθfunc)
-end =#

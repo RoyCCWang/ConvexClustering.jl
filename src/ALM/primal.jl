@@ -23,7 +23,7 @@ end
 """
     primaldirect(X::Matrix{T}, w::Vector{T}, edge_pairs, γ::T, A::Matrix{T})::T where T <: AbstractFloat
 """
-function primaldirect(X::Matrix{T}, w::Vector{T}, edge_pairs, γ::T, A::Matrix{T})::T where T <: AbstractFloat
+function primaldirect(X::Matrix{T}, w::Vector{T}, edge_pairs::Vector{Tuple{Int,Int}}, γ::T, A::Matrix{T})::T where T <: AbstractFloat
 
     #
     term1 = (dot(X,X) + dot(A,A) - 2*dot(X,A))/2 # norm(X-A,2)^2

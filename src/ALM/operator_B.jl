@@ -49,6 +49,30 @@ function evalB!(BX::Vector{Vector{T}}, X::Matrix{T}, edge_pairs::Vector{Tuple{In
     return nothing
 end
 
+# biclustering
+function evalB!(
+    BX::Matrix{T},
+    X::Matrix{T},
+    edge_pairs::Vector{Vector{Tuple{Int,Int}}},
+    ) where T <: AbstractFloat
+
+    D, N = size(X)
+    N_edges = length(edge_pairs)
+
+    @assert size(BX,1) == D
+    @assert size(BX,2) == N_edges
+
+    for j in axes(BX,2)
+        a, b = edge_pairs[j]
+
+        for d in axes(BX,1)
+            BX[d,j] = X[d,a] - X[d,b]
+        end
+    end
+
+    return nothing
+end
+
 # no error-checking on the indices in positives and negatives! They should be column indices of BadjZ.
 function evalBadj!(BadjZ::Matrix{T}, Z::Matrix{T}, positives, negatives) where T <: AbstractFloat
 
@@ -97,19 +121,53 @@ end
 # # here, consider going through the src_nodes and add their d to Badj.
 # # then the dest_nodes and subtract their entries to Badj.
 # # instead of iterating over Badj.
-function applyJt(Z::Matrix{T}, src_nodes::Vector{Int}, dest_nodes::Vector{Int},
+function applyJt(
+    Z::Matrix{T},
+    edges::Vector{Tuple{Int,Int}},
     N::Int) where T <: AbstractFloat
 
-    @assert length(src_nodes) == length(dest_nodes) == size(Z,2) # this is N_edges.
+    @assert length(edges) == size(Z,2) # this is N_edges.
 
     out = Matrix{T}(undef, size(Z,1), N)
-    applyJt!(out, Z, src_nodes, dest_nodes)
+    applyJt!(out, Z, edges)
 
     return out
 end
 
-function applyJt!(out::Matrix{T},
-    Z::Matrix{T}, src_nodes::Vector{Int}, dest_nodes::Vector{Int}) where T <: AbstractFloat
+# different data structure. faster according to examples/timing.jl
+function applyJt!(
+    out::Matrix{T},
+    Z::Matrix{T},
+    edges::Vector{Tuple{Int,Int}},
+    ) where T <: AbstractFloat
+
+    #N = size(out,2) # no error-checking on this.
+    @assert length(edges) == size(Z,2) # this is N_edges.
+    @assert size(Z,1) == size(out,1) #  this is D.
+
+    fill!(out, zero(T))
+
+    for l in eachindex(edges)
+        src, dest = edges[l]
+
+        for d in axes(out,1)
+            out[d,src] += Z[d,l]
+        end
+
+        for d in axes(out,1)
+            out[d,dest] -= Z[d,l]
+        end
+    end
+
+    return out
+end
+
+function applyJt!(
+    out::Matrix{T},
+    Z::Matrix{T},
+    src_nodes::Vector{Int},
+    dest_nodes::Vector{Int},
+    ) where T <: AbstractFloat
 
     #N = size(out,2) # no error-checking on this.
     @assert length(src_nodes) == length(dest_nodes) == size(Z,2) # this is N_edges.

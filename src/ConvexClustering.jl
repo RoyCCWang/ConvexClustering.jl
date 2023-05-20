@@ -20,6 +20,8 @@ module ConvexClustering
     include("./ALM/proximal.jl")
     include("./ALM/subproblem17.jl")
 
+    include("./co-clustering/edge_routines.jl")
+
     #include("./ALM/subproblem/SSNCG/nonlinear_solve.jl")
 
     include("./settings/search.jl") # search strategies for various hyperparameters given various stopping conditions.
