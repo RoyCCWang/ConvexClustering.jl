@@ -1,4 +1,6 @@
 
+
+
 ### graph connectivity specification.
 
 abstract type AbstractConnectivityType{T<:Real} end
@@ -77,10 +79,19 @@ end
 
 
 ### assignment algorithm config.
-struct AssignmentConfigType{T}
+
+abstract type AbstractAssignmentConfigType end
+
+struct AssignmentConfigType{T} <: AbstractAssignmentConfigType
     metric::Distances.Metric
     assignment_zero_tol::T
 end
+
+struct CoAssignmentConfigType{T} <: AbstractAssignmentConfigType
+    col::AssignmentConfigType{T}
+    row::AssignmentConfigType{T}
+end
+
 
 ### problem hyperparameters
 
@@ -175,6 +186,30 @@ end
 function traitof(::CoEdgeSet)
     return CoClustering()
 end
+
+### dual variable for ALM.
+
+# traits.
+function getdualtype(::EdgeSet{T}) where T
+    return ALMDualVar{T}
+end
+
+function getdualtype(::CoEdgeSet{T}) where T
+    return ALMCoDualVar{T}
+end
+
+# the different variables for each operation option.
+abstract type AuxiliaryVariable end
+
+struct ALMDualVar{T} <: AuxiliaryVariable
+    Z::Matrix{T}
+end
+
+struct ALMCoDualVar{T} <: AuxiliaryVariable
+    col::ALMDualVar{T}
+    row::ALMDualVar{T}
+end
+
 
 ### convex clustering problem config. User-facing.
 struct ProblemType{T, ET <: EdgeFormulation} # basic partition problem: no co-clustering.
@@ -292,15 +327,15 @@ struct CoBMapBuffer{T} <: RegularizationBuffer
     row::BMapBuffer{T}
 end
 
-function getZbuffer(::Conventional, Z0::Matrix{T}, N::Integer)::BMapBuffer{T} where T
-    return BMapBuffer(Z0, N)
+function getZbuffer(dual::ALMDualVar{T}, N::Integer)::BMapBuffer{T} where T
+    return BMapBuffer(dual.Z, N)
 end
 
-function getZbuffer(::CoClustering, Z0::Matrix{T}, N::Integer)::CoBMapBuffer{T} where T
+function getZbuffer(dual::ALMCoDualVar{T}, N::Integer)::CoBMapBuffer{T} where T
 
     return CoBMapBuffer(
-        BMapBuffer(Z0, N),
-        BMapBuffer(Z0, N),
+        BMapBuffer(dual.col.Z, N),
+        BMapBuffer(dual.row.Z, N),
     )
 end
 
@@ -388,29 +423,6 @@ end
 
 ### solution data structure for the ALM algorithm.
 
-
-# traits.
-function getdualtype(::EdgeSet{T}) where T
-    return ALMDualVar{T}
-end
-
-function getdualtype(::CoEdgeSet{T}) where T
-    return ALMCoDualVar{T}
-end
-
-# the different variables for each operation option.
-abstract type AuxiliaryVariable end
-
-struct ALMDualVar{T} <: AuxiliaryVariable
-    Z::Matrix{T}
-end
-
-struct ALMCoDualVar{T} <: AuxiliaryVariable
-    col::ALMDualVar{T}
-    row::ALMDualVar{T}
-end
-
-# container.
 struct ALMSolutionType{T, DT <: AuxiliaryVariable}
     X_star::Matrix{T}
     #aux_star::DT
@@ -433,4 +445,22 @@ struct SearchθConfigType{T}
     max_iters::Int
     min_dynamic_range::T
     getθfunc::Function # # iteration_number::Int ↦ θ, whatever datatype θ is.
+end
+
+### assignment result.
+
+
+# traits.
+function getassignmenttype(::EdgeSet{T}) where T
+    return Vector{Vector{Int}} # assignment result type for conventional case.
+end
+
+function getassignmenttype(::CoEdgeSet{T}) where T
+    return CoAssignmentResult
+end
+
+# assignment result type container for co-clustering case.
+struct CoAssignmentResult
+    col::Vector{Vector{Int}}
+    row::Vector{Vector{Int}}
 end

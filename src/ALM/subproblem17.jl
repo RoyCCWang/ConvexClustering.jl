@@ -147,7 +147,7 @@ end
 function computeV!(
     V::Matrix{T},
     BX::Matrix{T},
-    X, #::Matrix{T},
+    X::AbstractMatrix{T},
     Z::Matrix{T},
     λ::T,
     edge_pairs::Vector{Tuple{Int,Int}},
@@ -164,7 +164,7 @@ end
 
 function computeV!(
     V::Matrix{T},
-    X, #::Matrix{T},
+    X::AbstractMatrix{T},
     Z::Matrix{T},
     λ::T,
     edge_pairs::Vector{Tuple{Int,Int}},
@@ -173,7 +173,7 @@ function computeV!(
     D, N = size(X)
     N_edges = length(edge_pairs)
 
-    @assert size(V,1) == D
+    @assert size(V,1) == D # I am here.
     @assert size(V,2) == N_edges
 
     for j in axes(V,2)
@@ -200,7 +200,7 @@ end
 
 function computeV!(
     Q::BMapBuffer{T},
-    X, #::Matrix{T},
+    X::AbstractMatrix{T},
     λ::T,
     E::EdgeSet,
     ) where T <: AbstractFloat
@@ -226,7 +226,7 @@ end
 
 function compteϕXoptimterms!(
     reg::BMapBuffer,
-    X, #::Matrix{T},
+    X::AbstractMatrix{T},
     σ_buffer::Vector{T},
     problem::ProblemType{T,EdgeSet{T}},
     )::Tuple{T,T} where T <: AbstractFloat

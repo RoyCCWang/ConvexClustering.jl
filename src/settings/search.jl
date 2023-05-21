@@ -23,22 +23,24 @@ Gs, ret, iter
 """
 function searchγ(
     X0::Matrix{T},
-    Z0::Matrix{T},
+    Z0::Union{Matrix{T}, ALMCoDualVar{T}},
     problem_in::ProblemType{T,ET},
     optim_config::ALMConfigType{T},
-    assignment_config::AssignmentConfigType{T},
+    assignment_config::AbstractAssignmentConfigType,
     search_config::SearchγConfigType;
     store_trace::Bool = true,
     store_trace_assignments::Bool = true,
     report_cost::Bool = true,
     ) where {T <: AbstractFloat, ET <: EdgeFormulation}
 
+    E = problem_in.edge_set
     max_iters, max_partition_size, getγfunc = search_config.max_iters, search_config.max_partition_size, search_config.getγfunc
 
-    DT = getdualtype(problem_in.edge_set)
+    DT = getdualtype(E) # dual variable type.
     rets = Vector{ALMSolutionType{T, DT}}(undef, 1)
     
-    Gs = Vector{Vector{Vector{Int}}}(undef, 1)
+    AT = getassignmenttype(E) # assignment result type.
+    Gs = Vector{AT}(undef, 1)
     γs = Vector{T}(undef, 1)
 
     # first run.
@@ -46,7 +48,6 @@ function searchγ(
     γ = getγfunc(iter)
     problem = copywithγ(problem_in, γ)
 
-# I am here return rets.
     G, ret = runconvexclustering(X0, Z0,
         problem, optim_config, assignment_config;
         store_trace = store_trace,

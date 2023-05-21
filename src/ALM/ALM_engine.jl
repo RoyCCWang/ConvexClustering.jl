@@ -5,7 +5,7 @@
 ```
 function runALM(
     X_initial::Matrix{T},
-    Z_initial::Matrix{T},
+    dual_initial::AuxiliaryVariable,
     problem::ProblemType{T,ET},
     config::ALMConfigType{T};
     store_trace::Bool = false,
@@ -21,7 +21,8 @@ Outputs:
 """
 function runALM(
     X_initial::Matrix{T},
-    Z_initial::Matrix{T},
+    #Z_initial::Matrix{T},
+    dual_initial::AuxiliaryVariable,
     problem::ProblemType{T,ET},
     config::ALMConfigType{T};
     store_trace::Bool = false,
@@ -37,7 +38,7 @@ function runALM(
     @assert size(X_initial) == size(A)
 
     # # variables.
-    reg = getZbuffer(traitof(edge_set), Z_initial, N)
+    reg = getZbuffer(dual_initial, N)
 
     #Z::Matrix{T} = copy(Z_initial)
     x::Vector{T} = vec(copy(X_initial))
@@ -70,7 +71,7 @@ function runALM(
     gaps::Vector{T} = ones(T, 3) .* Inf
     x_star = Vector{T}(undef, length(x))
     #Z_prev = copy(Z_initial)
-    reg_prev = getZbuffer(traitof(edge_set), Z_initial, N)
+    reg_prev = getZbuffer(dual_initial, N)
     trace = TraceType(traitof(edge_set), T, 0)
     if store_trace
         resizetrace!(trace, traitof(edge_set), max_iters)

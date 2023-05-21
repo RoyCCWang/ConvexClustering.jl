@@ -16,9 +16,8 @@ data_mat = convert(Matrix{T}, csv_mat[2:end, 3:end])
 col_headings = vec(csv_mat[1, 3:end])
 row_headings = vec(csv_mat[2:end, 1])
 
-data_col_vecs = collect( vec(data_mat[n,:]) for n in axes(data_mat, 1) )
-data_row_vecs = collect( vec(data_mat[:,n]) for n in axes(data_mat, 2) )
-
+data_col_vecs = collect( vec(data_mat[:,n]) for n in axes(data_mat, 2) )
+data_row_vecs = collect( vec(data_mat[n,:]) for n in axes(data_mat, 1) )
 
 #distance_threshold = (maximum(data_mat) - minimum(data_mat))/10
 distance_threshold_col = 6.5
@@ -77,10 +76,6 @@ optim_config = ConvexClustering.ALMConfigType(
     updateϵfunc = updateϵfunc
 )
 
-# assignment.
-assignment_zero_tol = 1e-3
-assignment_config = ConvexClustering.AssignmentConfigType(metric, assignment_zero_tol)
-
 # verbose, trace, and stopping condition configs.
 verbose_subproblem = false
 report_cost = true # want to see the objective score per θ run or γ run.
@@ -99,24 +94,39 @@ problem = CC.ProblemType(
     ),
 )
 
-@assert 1==2
+
 
 ### initial guess.
-D, N = size(A)
-N_edges = length(edge_pairs)
+D, N = size(A_col)
+N_edges_col = length(edges_col)
+N_edges_row = length(edges_row)
 
 X0 = zeros(D, N)
-Z0 = zeros(D, N_edges)
+dual_initial = CC.ALMCoDualVar(
+    CC.ALMDualVar(zeros(D, N_edges_col)),
+    CC.ALMDualVar(zeros(D, N_edges_row)),
+)
+
+# assignment.
+assignment_zero_tol = 1e-3
+assignment_config_col = ConvexClustering.AssignmentConfigType(metric, assignment_zero_tol)
+
+assignment_zero_tol = 1e-3
+assignment_config_row = ConvexClustering.AssignmentConfigType(metric, assignment_zero_tol)
+
+assignment_config = CC.CoAssignmentConfigType(assignment_config_col, assignment_config_row)
 
 ### optimization algorithm settings.
 
 ### run optimization.
 Gs_cc, rets, γs = ConvexClustering.searchγ(
-    X0, Z0, problem, optim_config, assignment_config, config_γ;
+    X0, dual_initial, problem, optim_config, assignment_config, config_γ;
     store_trace = store_trace,
     report_cost = report_cost)
 G_cc_last = Gs_cc[end]
 iters_γ = length(γs)
+
+@assert 1==2
 
 println("Are the returned partitions nested successively? ",
     all(ConvexClustering.isnestedsuccessively(Gs_cc)),

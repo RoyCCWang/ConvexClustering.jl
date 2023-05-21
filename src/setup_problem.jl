@@ -114,7 +114,8 @@ function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
     return neighbourhoods
 end
 
-function constructgraph(X::Matrix{T},
+function constructgraph(
+    X::Matrix{T},
     metric::Distances.Metric,
     connectivity::AbstractConnectivityType{ET}) where {T<: AbstractFloat, ET}
 
