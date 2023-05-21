@@ -224,8 +224,6 @@ function ProblemType(
 end
 
 
-
-
 ### duality gap-related buffers.
 struct DualityGapBuffer{T}
     # reuse buffers from ϕ or dϕ for primal, dual, primal_dual gap calculation.
@@ -390,21 +388,34 @@ end
 
 ### solution data structure for the ALM algorithm.
 
-# abstract type AuxiliaryVariable end
 
-# struct ALMDualVar{T} <: AuxiliaryVariable
-#     Z::Vector{T}
-# end
+# traits.
+function getdualtype(::EdgeSet{T}) where T
+    return ALMDualVar{T}
+end
 
-# struct ALMCoDualVar{T} <: AuxiliaryVariable
-#     col::DualVar{T}
-#     row::DualVar{T}
-# end
+function getdualtype(::CoEdgeSet{T}) where T
+    return ALMCoDualVar{T}
+end
 
-struct ALMSolutionType{T}
+# the different variables for each operation option.
+abstract type AuxiliaryVariable end
+
+struct ALMDualVar{T} <: AuxiliaryVariable
+    Z::Matrix{T}
+end
+
+struct ALMCoDualVar{T} <: AuxiliaryVariable
+    col::ALMDualVar{T}
+    row::ALMDualVar{T}
+end
+
+# container.
+struct ALMSolutionType{T, DT <: AuxiliaryVariable}
     X_star::Matrix{T}
     #aux_star::DT
-    Z_star::Vector{Matrix{T}}
+    #Z_star::Vector{Matrix{T}}
+    dual_star::DT
     num_iters_ran::Int
     gaps::Vector{T}
     trace::TraceType{T}

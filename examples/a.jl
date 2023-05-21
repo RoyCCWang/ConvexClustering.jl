@@ -6,6 +6,10 @@ using LinearAlgebra
 import Random
 using BenchmarkTools
 
+import CSV
+import TypedTables
+using DelimitedFiles
+
 #import Optim
 #include("./helpers/optim.jl")
 

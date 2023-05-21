@@ -35,8 +35,10 @@ function searchγ(
 
     max_iters, max_partition_size, getγfunc = search_config.max_iters, search_config.max_partition_size, search_config.getγfunc
 
+    DT = getdualtype(problem_in.edge_set)
+    rets = Vector{ALMSolutionType{T, DT}}(undef, 1)
+    
     Gs = Vector{Vector{Vector{Int}}}(undef, 1)
-    rets = Vector{ALMSolutionType{T}}(undef, 1)
     γs = Vector{T}(undef, 1)
 
     # first run.

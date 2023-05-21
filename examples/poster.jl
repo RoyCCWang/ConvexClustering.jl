@@ -1,38 +1,49 @@
 
 T = Float64
 
-
+include("./helpers/co.jl")
 
 metricfunc = (xx,yy)->norm(xx-yy)
-Δc, referenec_sol_Gs_cc = alphaglucose700()
 
 
-distance_threshold = 1e-3
+table = CSV.read("./data/CCLE_metabolomics_20190502.csv", TypedTables.Table)
 
-# early_stop_distance = 1e-3
-# distance_set, partition_set = SingleLinkagePartitions.runsinglelinkage(
-#     Δc,
-#     metricfunc;
-#     early_stop_distance = early_stop_distance,
-# )
+# each row is a data point. column i is the i-th attribute
+csv_mat = readdlm("./data/CCLE_metabolomics_20190502.csv", ',', Any)
 
-function getmergedpartition(
-    X::Vector{Vector{T}};
-    metricfunc = (xx,yy)->norm(xx-yy),
-    distance_threshold = 1e-3,
-    ) where T
+data_mat = convert(Matrix{T}, csv_mat[2:end, 3:end])
 
-    Y, status_flag, partitioned_set_sorted, h_set_sorted, chosen_ind = SingleLinkagePartitions.mergepointsfull(X, metricfunc; tol = distance_threshold)
+col_headings = vec(csv_mat[1, 3:end])
+row_headings = vec(csv_mat[2:end, 1])
 
-    return Y, status_flag, partitioned_set_sorted[chosen_ind]
-end
+data_col_vecs = collect( vec(data_mat[n,:]) for n in axes(data_mat, 1) )
+data_row_vecs = collect( vec(data_mat[:,n]) for n in axes(data_mat, 2) )
 
-Δc_post_SL, SL_status, SL_partitions, SL_distances, SL_terminal_ind = SL.mergepointsfull(
-    Δc,
+
+#distance_threshold = (maximum(data_mat) - minimum(data_mat))/10
+distance_threshold_col = 6.5
+distance_threshold_row = 8.5
+
+#
+SL_col, SL_colstatus, SL_col_partitions, SL_col_distances,
+SL_col_terminal_ind = SL.mergepointsfull(
+    data_col_vecs,
     metricfunc;
-    tol = distance_threshold,
+    tol = distance_threshold_col,
 )
-SL_terminal_partition = SL_partitions[SL_terminal_ind]
+SL_col_part = SL_col_partitions[SL_col_terminal_ind]
+@show length(SL_col_part)
+
+#
+SL_row, SL_rowstatus, SL_row_partitions, SL_row_distances,
+SL_row_terminal_ind = SL.mergepointsfull(
+    data_row_vecs,
+    metricfunc;
+    tol = distance_threshold_row,
+)
+SL_row_part = SL_row_partitions[SL_row_terminal_ind]
+@show length(SL_row_part)
+
 
 ###### search.
 
@@ -42,28 +53,10 @@ SL_terminal_partition = SL_partitions[SL_terminal_ind]
 metric = Distances.Euclidean()
 kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does not output negative numbers.
 
-connectivity = ConvexClustering.KNNType(60) # make an edge for this number of nearest neighbours of a given point i, cycle through all i in the point set to be partitioned. Takes a positive integer.
-#connectivity = ConvexClustering.KNNType(length(Δc_post_SL)-1)
-
-#connectivity = ConvexClustering.RadiusType(1.0) # make an edge for all points within this radius of a given point i, cycle through all i in the point set to be partitioned. Takes a finite floating point number.
-
-# package up config parameters.
-graph_config = ConvexClustering.WeightedGraphConfigType(connectivity, metric, kernelfunc)
-
-## variable hyperparameters
-
-# weight function hyperparameter search.
-length_scale_base = 10.0
-length_scale_rate = 0.7
-length_scale_max_iters = 1000
-min_dynamic_range = 0.95
-getθfunc = nn->lengthscale2θ(evalgeometricsequence(nn-1, length_scale_base, length_scale_rate))
-config_θ = ConvexClustering.SearchθConfigType(length_scale_max_iters, min_dynamic_range, getθfunc)
-
 # regularization parameter search.
 γ_base = 0.01
 γ_rate = 1.05
-max_partition_size = length(Δc_post_SL[1]) + 2 # stop searching once the size of the returned partition is less than `max_partition_size`.
+max_partition_size = 13#length(data[1]) + 2
 max_iters_γ = 100
 getγfunc = nn->evalgeometricsequence(nn-1, γ_base, γ_rate)
 config_γ = ConvexClustering.SearchγConfigType(max_iters_γ, max_partition_size, getγfunc)
@@ -93,27 +86,20 @@ verbose_subproblem = false
 report_cost = true # want to see the objective score per θ run or γ run.
 store_trace = true
 
-verbose_kernel = true
-
-
-### setup convex clustering problem.
-A, edge_pairs, w, A_neighbourhoods, θs = ConvexClustering.searchkernelparameters(
-    T,
-    Δc_post_SL,
-    config_θ,
-    graph_config;
-    verbose = verbose_kernel,
-)
-iter_kernel = length(θs)
-length_scale = θ2lengthscale( getθfunc(iter_kernel) )
-println("Starting length scale: ", getθfunc(1))
-println("resulting length scale: ", length_scale)
-@show min_dynamic_range
-
+A_col, edges_col, w_col, neighbourhood_col, θs_col = preparedatagraph(SL_col)
+A_row, edges_row, w_row, neighbourhood_row, θs_row = preparedatagraph(SL_row)
 
 # initialize γ to NaN since it will be replaced by the search sequence in config_γ = getγfunc
-problem = ConvexClustering.ProblemType(A, NaN, w, edge_pairs)
+problem = CC.ProblemType(
+    A_col,
+    NaN,
+    CC.CoEdgeSet(
+        CC.EdgeSet(w_col, edges_col),
+        CC.EdgeSet(w_col, edges_col),
+    ),
+)
 
+@assert 1==2
 
 ### initial guess.
 D, N = size(A)
@@ -157,7 +143,7 @@ function applySL(
     return out
 end
 
-G = applySL(Gs_cc[end-1], SL_terminal_partition)
+G = applySL(Gs_cc[end-1], SL_col_part)
 G_flat = collect(Iterators.flatten(G))
 @assert length(G_flat) == length(unique(G_flat))
 

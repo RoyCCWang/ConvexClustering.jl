@@ -1,117 +1,25 @@
 # routines that use edges for runALM().
 
-function computeV!(
-    Q::BMapBuffer{T},
-    X::Matrix{T},
-    λ::T,
-    E::EdgeSet,
-    ) where T <: AbstractFloat
-
-    return computeV!(Q.V, X, Q.Z, λ, E.edges)
-end
- 
-function computeV!(
-    Q::CoBMapBuffer{T},
-    X::Matrix{T},
-    λ::T,
-    E::CoEdgeSet,
-    ) where T <: AbstractFloat
-
-    computeV!(Q.col.V, X, Q.col.Z, λ, E.col.edges)
-    computeV!(Q.row.V, X, Q.row.Z, λ, E.row.edges)
-
-    return nothing
-end
-
-
-##########
-
-function compteϕXoptim!(
-    reg::BMapBuffer,
-    X::Matrix{T},
-    σ_buffer::Vector{T},
-    problem::ProblemType{T,EdgeSet{T}},
-    )::T where T <: AbstractFloat
-    
-    A, γ, E = unpackspecs(problem)
-    Z, V, prox_V = reg.Z, reg.V, reg.prox_V
-    w = E.w
-    σ =  σ_buffer[begin]
-    λ = one(T)/σ
-
-    computeV!(V, X, Z, λ, E.edges)
-    proximaltp!(prox_V, V, w, γ, λ)
-    p_prox_V = evalp(prox_V, w, γ)
-
-    #this is (σ/2)*norm(V-prox_V,2)^2
-    term3 = (σ/2)*(dot(V,V) + dot(prox_V,prox_V) - 2*dot(prox_V,V))
-    
-    term1 = (dot(X,X) + dot(A,A) - 2*dot(X,A))/2 # thi is norm(X-A,2)^2
-
-    return term1 + p_prox_V + term3
-end
-
-function computedϕoptim!(
-    grad::Vector{T},
-    reg::BMapBuffer,
-    grad_mat::Matrix{T},
-    X::Matrix{T},
-    σ_buffer::Vector{T},
-    problem::ProblemType{T,EdgeSet{T}},
-    ) where T <: AbstractFloat
-
-    A, γ, E = unpackspecs(problem)
-    w = E.w
-    Z, V, prox_V = reg.Z, reg.V, reg.prox_V
-    σ = σ_buffer[begin]
-    λ = one(T)/σ
-
-    ## set up.
-    computeV!(V, X, Z, λ, E.edges)
-    proximaltp!(prox_V, V, w, γ, λ)
-
-    ## gradient.
-    computedϕgivenproximaltp!(
-        grad_mat,
-        X,
-        V,
-        prox_V,
-        A,
-        E.edges,
-        σ,
-    ) # faster.
-
-    # parse.
-    for i in eachindex(grad_mat)
-        grad[i] = grad_mat[i]
-    end
-
-    return nothing
-end
 
 ########## for computing the duality gap.
 
 # step 2 of algorithm 1 in (Sun, JMLR 2021)
 # mutates U.
-function computeU!(
-    # U::Matrix{T}, # mutated output
-    # BX::Matrix{T},
-    # V::Matrix{T}, # buffers
-    reg::BMapBuffer,
-    X::Matrix{T},
-    #Z::Matrix{T}, # inputs
-    #w::Vector{T},
-    γ::T,
-    λ::T,
-    edge_set::EdgeSet,
-    ) where T <: AbstractFloat
-
-    residual = reg.residual
-
-    # update V, BX given X, Z.
-    computeV!(reg.V, residual.BX, X, reg.Z, λ, edge_set.edges)
+function computeU!(reg::BMapBuffer, X::Matrix{T}, γ::T, λ::T, edge_set::EdgeSet) where T <: AbstractFloat
 
     # the update for U is prox_V. See text near quation 20 in (Sun, JMLR 2021).
+    residual = reg.residual
+    computeV!(reg.V, residual.BX, X, reg.Z, λ, edge_set.edges) # update V, BX given X, Z.
+    proximaltp!(residual.U, reg.V, edge_set.w, γ, λ)
+
+    return nothing
+end
+
+function computeU!(reg::CoBMapBuffer, X::Matrix{T}, γ::T, λ::T, edge_set::CoEdgeSet) where T <: AbstractFloat
+
+    # the update for U is prox_V. See text near quation 20 in (Sun, JMLR 2021).
+    residual = reg.col.residual
+    computeV!(reg.V, residual.BX, X', reg.Z, λ, edge_set.edges) # update V, BX given X, Z.
     proximaltp!(residual.U, reg.V, edge_set.w, γ, λ)
 
     return nothing
@@ -129,15 +37,63 @@ function updateZ!(reg::BMapBuffer{T}, σ::T) where T
     return nothing
 end
 
-# conventional.
+function updateZ!(reg::CoBMapBuffer{T}, σ::T) where T
+
+    updateZ!(reg.col, σ)
+    updateZ!(reg.row, σ)
+
+    return nothing
+end
+
 function computeKKTresiduals!(
     reg::BMapBuffer{T}, # mutates tmp buffers.
     X::Matrix{T},
     problem::ProblemType{T,EdgeSet{T}},
     norm_A_p_1::T,
     )::Tuple{T,T,T} where T
-    
+
     A, γ, edge_set = unpackspecs(problem)
+    return computeKKTresiduals!(reg, X, A, γ, edge_set, norm_A_p_1)
+end
+
+function computeKKTresiduals!(
+    reg::CoBMapBuffer{T}, # mutates tmp buffers.
+    X::Matrix{T},
+    problem::ProblemType{T,CoEdgeSet{T}},
+    norm_A_p_1::T,
+    )::Tuple{T,T,T} where T
+
+    A, γ, edge_set = unpackspecs(problem)
+    p_col, d_col, pd_col = computeKKTresiduals!(
+        reg.col,
+        X,
+        A,
+        γ,
+        edge_set.col,
+        norm_A_p_1,
+    )
+    p_row, d_row, pd_row = computeKKTresiduals!(
+        reg.row,
+        X',
+        A',
+        γ,
+        edge_set.row,
+        norm_A_p_1,
+    )
+
+    return p_col + p_row, d_col + d_row, pd_col + pd_row
+end
+
+# For a single regularizer.
+function computeKKTresiduals!(
+    reg::BMapBuffer{T}, # mutates tmp buffers.
+    X,
+    A,
+    γ::T,
+    edge_set::EdgeSet,
+    norm_A_p_1::T,
+    )::Tuple{T,T,T} where T
+    
     Z = reg.Z
     U, BX, prox_U_plus_Z, U_plus_Z, BadjZ = unpackbuffer(reg.residual)
     w = edge_set.w

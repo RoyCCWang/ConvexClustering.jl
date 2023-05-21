@@ -32,20 +32,49 @@ function assignviaBX(X::Matrix{T},
 end
 
 """
-assignviaX(X::Matrix{T},
+assignviaX
+    (X::Matrix{T},
     metric::Distances.Metric;
-    zero_tol = 1e-6)::Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}} where T <: AbstractFloat
+    zero_tol = 1e-6,
+)::Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}} where T <: AbstractFloat
 
 """
-function assignviaX(X::Matrix{T},
+function assignviaX(
+    ::Conventional,
+    X::Matrix{T},
     metric::Distances.Metric;
-    zero_tol::T = convert(T,1e-6))::Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}} where T <: AbstractFloat
+    zero_tol::T = convert(T,1e-6),
+    )::Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}} where T <: AbstractFloat
 
     connectivity = RadiusType(zero_tol)
     g, g_neighbourhoods = constructgraph(X, metric, connectivity)
     G = Graphs.connected_components(g)
 
     return G, g_neighbourhoods
+end
+
+function assignviaX(
+    ::CoClustering,
+    X::Matrix{T},
+    metric::Distances.Metric;
+    zero_tol::T = convert(T,1e-6),
+    )::Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}} where T <: AbstractFloat
+
+    connectivity = RadiusType(zero_tol)
+    g, g_neighbourhoods = constructgraph(X, metric, connectivity)
+    G = Graphs.connected_components(g)
+
+    return G, g_neighbourhoods
+end
+
+# default to the conventional mode.
+function assignviaX(
+    X::Matrix{T},
+    metric::Distances.Metric;
+    zero_tol::T = convert(T,1e-6),
+    )::Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}} where T <: AbstractFloat
+
+    return assignviaX(Conventional(), X, metric; zero_tol = zero_tol)
 end
 
 #

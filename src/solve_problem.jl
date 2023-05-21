@@ -7,7 +7,8 @@ runconvexclustering(X0::Matrix{T},
     store_trace::Bool = false,
     report_cost = false) where {T <: AbstractFloat, ET <: EdgeFormulation}
 """
-function runconvexclustering(X0::Matrix{T},
+function runconvexclustering(
+    X0::Matrix{T},
     Z0::Matrix{T},
     problem::ProblemType{T,ET},
     optim_config::ALMConfigType{T},
