@@ -174,10 +174,18 @@ function getNedges(A::EdgeSet)::Int
 end
 
 function getw(A::EdgeSet{T})::Vector{T} where T
+    return getw(A, ColumnWise())
+end
+
+function getw(A::EdgeSet{T}, ::ColumnWise)::Vector{T} where T
     return A.w
 end
 
 function getedges(A::EdgeSet)::Vector{Tuple{Int,Int}}
+    return getedges(A, ColumnWise())
+end
+
+function getedges(A::EdgeSet, ::ColumnWise)::Vector{Tuple{Int,Int}}
     return A.edges
 end
 
@@ -191,19 +199,19 @@ function getNedges(A::CoEdgeSet)::Int
 end
 
 function getw(A::CoEdgeSet{T}, ::RowWise)::Vector{T} where T
-    return A.row.w
+    return getw(A.row)
 end
 
 function getw(A::CoEdgeSet{T}, ::ColumnWise)::Vector{T} where T
-    return A.col.w
+    return getw(A.col)
 end
 
 function getedges(A::CoEdgeSet, ::RowWise)::Vector{Tuple{Int,Int}}
-    return A.row.edges
+    return getedges(A.row)
 end
 
 function getedges(A::CoEdgeSet, ::ColumnWise)::Vector{Tuple{Int,Int}}
-    return A.col.edges
+    return getedges(A.col)
 end
 
 # traits.

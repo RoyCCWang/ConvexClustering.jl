@@ -70,6 +70,7 @@ config_γ = ConvexClustering.SearchγConfigType(max_iters_γ, max_partition_size
 
 # convex clustering optimization algorithm configuration.
 σ_base = 0.4
+#σ_base = 5000.0
 σ_rate = 1.05
 updateσfunc = nn->σ_base*σ_rate^(nn-1)
 updateϵfunc = nn->1/(nn-1)^2

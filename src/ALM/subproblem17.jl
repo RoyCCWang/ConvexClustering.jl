@@ -391,7 +391,7 @@ function computedϕgivenproximaltp!(
     end
 
     # contribution from regularization terms.
-    applyproxcontribution!(out, reg.V, reg.prox_V, problem.edge_set.edges, σ)
+    applyproxcontribution!(out, ColumnWise(), reg.V, reg.prox_V, problem.edge_set.edges, σ)
 
     return nothing
 end

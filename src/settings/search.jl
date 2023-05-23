@@ -47,8 +47,10 @@ function searchγ(
     iter = 1
     γ = getγfunc(iter)
     problem = copywithγ(problem_in, γ)
+    X_initial = X0
+    Z_initial = Z0
 
-    G, ret = runconvexclustering(X0, Z0,
+    G, ret = runconvexclustering(X_initial, Z_initial,
         problem, optim_config, assignment_config;
         store_trace = store_trace,
         report_cost = report_cost)
@@ -59,30 +61,55 @@ function searchγ(
 
     # keep running if too many parts in the returned partition G.
     while partitionislarger(G, search_config) && iter <= max_iters
+    #while length(G) > search_config.max_partition_size && iter <= max_iters
 
         iter += 1
         γ = getγfunc(iter)
         problem = copywithγ(problem_in, γ)
+        X_initial = ret.X_star
+        Z_initial = ret.dual_star
 
-        new_G, new_ret = runconvexclustering(X0, Z0,
+        G, ret = runconvexclustering(X_initial, Z_initial,
         problem, optim_config, assignment_config;
             store_trace = store_trace,
             report_cost = report_cost,
         )
 
         if store_trace_assignments
-            push!(Gs, new_G)
-            push!(rets, new_ret)
+            push!(Gs, G)
+            push!(rets, ret)
             push!(γs, γ)
         else
-            Gs[begin] = new_G
-            rets[begin] = new_ret
+            Gs[begin] = G
+            rets[begin] = ret
             γs[begin] = γ
         end
 
-        if partitionislarger(new_G, search_config)
+        if partitionissmaller(G, search_config)
+        #if length(new_G) < search_config.max_partition_size
             return Gs, rets, γs
         end
+
+        # new_G, new_ret = runconvexclustering(X0, Z0,
+        # problem, optim_config, assignment_config;
+        #     store_trace = store_trace,
+        #     report_cost = report_cost,
+        # )
+
+        # if store_trace_assignments
+        #     push!(Gs, new_G)
+        #     push!(rets, new_ret)
+        #     push!(γs, γ)
+        # else
+        #     Gs[begin] = new_G
+        #     rets[begin] = new_ret
+        #     γs[begin] = γ
+        # end
+
+        # if partitionissmaller(new_G, search_config)
+        # #if length(new_G) < search_config.max_partition_size
+        #     return Gs, rets, γs
+        # end
     end
 
     return Gs, rets, γs
@@ -94,7 +121,7 @@ function partitionislarger(G::Vector{Vector{Int}}, search_config::SearchγConfig
 end
 
 function partitionissmaller(G::Vector{Vector{Int}}, search_config::SearchγConfigType)::Bool
-    return length(G) > search_config.max_partition_size
+    return length(G) < search_config.max_partition_size
 end
 
 function partitionislarger(G::CoAssignmentResult, search_config::SearchCoγConfigType)::Bool

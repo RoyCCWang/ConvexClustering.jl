@@ -15,6 +15,10 @@ function computeU!(reg::BMapBuffer, op_trait::MatrixOperationTrait, X::Matrix{T}
     return nothing
 end
 
+function computeU!(reg::BMapBuffer, X::Matrix{T}, γ::T, λ::T, edge_set::EdgeSet) where T <: AbstractFloat
+    return computeU!(reg, ColumnWise(), X, γ, λ, edge_set)
+end
+
 function computeU!(reg::CoBMapBuffer, X::Matrix{T}, γ::T, λ::T, edge_set::CoEdgeSet) where T <: AbstractFloat
 
     computeU!(reg.col, ColumnWise(), X, γ, λ, edge_set.col)

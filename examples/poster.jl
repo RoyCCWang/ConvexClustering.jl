@@ -19,31 +19,33 @@ row_headings = vec(csv_mat[2:end, 1])
 data_col_vecs = collect( vec(data_mat[:,n]) for n in axes(data_mat, 2) )
 data_row_vecs = collect( vec(data_mat[n,:]) for n in axes(data_mat, 1) )
 
-#distance_threshold = (maximum(data_mat) - minimum(data_mat))/10
-# distance_threshold_col = 6.5
-# distance_threshold_row = 6.3
-distance_threshold = 7.0
-
-#
-SL_col, SL_colstatus, SL_col_partitions, SL_col_distances,
-SL_col_terminal_ind = SL.mergepointsfull(
-    data_col_vecs,
-    metricfunc;
-    #tol = distance_threshold_col,
-    tol = distance_threshold,
-)
-SL_col_part = SL_col_partitions[SL_col_terminal_ind]
-@show length(SL_col_part)
+# #distance_threshold = (maximum(data_mat) - minimum(data_mat))/10
+# # distance_threshold_col = 6.5
+# # distance_threshold_row = 6.3
+# distance_threshold = 7.0
 
 # #
-# SL_row, SL_rowstatus, SL_row_partitions, SL_row_distances,
-# SL_row_terminal_ind = SL.mergepointsfull(
-#     data_row_vecs,
+# SL_col, SL_colstatus, SL_col_partitions, SL_col_distances,
+# SL_col_terminal_ind = SL.mergepointsfull(
+#     data_col_vecs,
 #     metricfunc;
-#     tol = distance_threshold_row,
+#     #tol = distance_threshold_col,
+#     tol = distance_threshold,
 # )
-# SL_row_part = SL_row_partitions[SL_row_terminal_ind]
-# @show length(SL_row_part)
+# SL_col_part = SL_col_partitions[SL_col_terminal_ind]
+# @show length(SL_col_part)
+
+# # #
+# # SL_row, SL_rowstatus, SL_row_partitions, SL_row_distances,
+# # SL_row_terminal_ind = SL.mergepointsfull(
+# #     data_row_vecs,
+# #     metricfunc;
+# #     tol = distance_threshold_row,
+# # )
+# # SL_row_part = SL_row_partitions[SL_row_terminal_ind]
+# # @show length(SL_row_part)
+
+SL_col = data_col_vecs
 
 #@assert 1==2
 
@@ -56,7 +58,8 @@ metric = Distances.Euclidean()
 kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does not output negative numbers.
 
 # regularization parameter search.
-γ_base = 0.01
+#γ_base = 0.01
+γ_base = 10.0
 γ_rate = 1.05
 col_max_partition_size = 13
 row_max_partition_size = 13
@@ -91,7 +94,10 @@ report_cost = true # want to see the objective score per θ run or γ run.
 store_trace = true
 
 # column j of A_col or A_row is the j-th point in the set to be partitioned.
-A_col, edges_col, w_col, neighbourhood_col, θs_col = preparedatagraph(SL_col)
+A_col, edges_col, w_col, neighbourhood_col, θs_col = preparedatagraph(
+    SL_col;
+    knn = 30,
+)
 
 A_row_vecs = collect( vec(A_col[n,:]) for n in axes(A_col,1) )
 A_row, edges_row, w_row, neighbourhood_row, θs_row = preparedatagraph(
@@ -101,7 +107,7 @@ A_row, edges_row, w_row, neighbourhood_row, θs_row = preparedatagraph(
 
 @show length(w_col), length(w_row)
 
-#@assert 1==3
+@assert 1==3
 
 # initialize γ to NaN since it will be replaced by the search sequence in config_γ = getγfunc
 problem = CC.ProblemType(
@@ -148,6 +154,9 @@ G_cc_last = Gs_cc[end]
 iters_γ = length(γs)
 
 @assert 1==2
+
+# I am here. do one γ and one θ solve, verify it solves the co-clustering optim problem.
+
 
 println("Are the returned partitions nested successively? ",
     all(ConvexClustering.isnestedsuccessively(Gs_cc)),

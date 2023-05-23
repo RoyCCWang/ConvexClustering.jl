@@ -36,10 +36,25 @@ function runconvexclustering(
     return G, ret
 end
 
+function runconvexclustering(
+    X0::Matrix{T},
+    dual0::ALMDualVar,
+    problem::ProblemType{T,EdgeSet{T}},
+    optim_config::ALMConfigType{T},
+    assignment_config::AssignmentConfigType{T};
+    store_trace::Bool = false,
+    report_cost = false) where T <: AbstractFloat
+    
+    return runconvexclustering(X0, dual0.Z, problem, optim_config, assignment_config;
+        store_trace = store_trace,
+        report_cost = report_cost,
+    )
+end
+
 # co-clustering case.
 function runconvexclustering(
     X0::Matrix{T},
-    dual::ALMCoDualVar{T}, #Z0::Matrix{T},
+    dual0::ALMCoDualVar{T}, #Z0::Matrix{T},
     problem::ProblemType{T,CoEdgeSet{T}},
     optim_config::ALMConfigType{T},
     ac::CoAssignmentConfigType{T};
@@ -47,7 +62,7 @@ function runconvexclustering(
     report_cost = false) where T <: AbstractFloat
 
     assignment_config_col, assignment_config_row = ac.col, ac.row
-    ret = runALM(X0, dual, problem, optim_config; store_trace = store_trace)
+    ret = runALM(X0, dual0, problem, optim_config; store_trace = store_trace)
 
     G_col, g_neighbourhoods_col = assignviaX(
         ret.X_star,
