@@ -180,9 +180,13 @@ function searchkernelparameters(
     θ = getθfunc(iter)
     θs::Vector{KT} = collect( θ for _ = 1:1 ) # diagnostics.
 
-    A, edge_pairs, w, A_neighbourhoods = setupproblem(A_vecs, θ, connectivity;
+    A, edge_pairs, w, A_neighbourhoods = setupproblem(
+        A_vecs,
+        θ,
+        connectivity;
         metric = metric,
-        kernelfunc = kernelfunc)
+        kernelfunc = kernelfunc,
+    )
 
     if verbose
         @show (iter, θ, minimum(w), maximum(w), min_dynamic_range)

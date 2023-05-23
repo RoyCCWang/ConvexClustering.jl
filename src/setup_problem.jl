@@ -87,7 +87,7 @@ function getneighbourhoods(X::AbstractMatrix{T}, metric::Distances.Metric,
     #
     knn = connectivity.knn
 
-    if knn >= size(X,2)-1
+    if knn > size(X,2)-1
         println("Warning, the supplied knn is larger than the number of points, N ($(size(X,2))). Default to using knn = N-1 instead.")
         knn = size(X,2)-1
     end

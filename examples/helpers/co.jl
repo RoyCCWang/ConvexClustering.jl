@@ -3,6 +3,8 @@
 function preparedatagraph(
     data::Vector{Vector{T}};
     knn = length(data)-1,
+    metric = Distances.Euclidean(),
+    kernelfunc = evalSqExpkernel,
     ) where T
 
     #connectivity = ConvexClustering.KNNType(60) # make an edge for this number of nearest neighbours of a given point i, cycle through all i in the point set to be partitioned. Takes a positive integer.
@@ -10,7 +12,11 @@ function preparedatagraph(
     #connectivity = ConvexClustering.RadiusType(1.0) # make an edge for all points within this radius of a given point i, cycle through all i in the point set to be partitioned. Takes a finite floating point number.
 
     # package up config parameters.
-    graph_config = ConvexClustering.WeightedGraphConfigType(connectivity, metric, kernelfunc)
+    graph_config = ConvexClustering.WeightedGraphConfigType(
+        connectivity,
+        metric,
+        kernelfunc,
+    )
 
     ## variable hyperparameters
 
@@ -19,8 +25,18 @@ function preparedatagraph(
     length_scale_rate = 0.7
     length_scale_max_iters = 1000
     min_dynamic_range = 0.95
-    getθfunc = nn->lengthscale2θ(evalgeometricsequence(nn-1, length_scale_base, length_scale_rate))
-    config_θ = ConvexClustering.SearchθConfigType(length_scale_max_iters, min_dynamic_range, getθfunc)
+    getθfunc = nn->lengthscale2θ(
+        evalgeometricsequence(
+            nn-1,
+            length_scale_base,
+            length_scale_rate,
+        ),
+    )
+    config_θ = ConvexClustering.SearchθConfigType(
+        length_scale_max_iters,
+        min_dynamic_range,
+        getθfunc,
+    )
 
     verbose_kernel = true
 

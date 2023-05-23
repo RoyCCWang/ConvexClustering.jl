@@ -36,6 +36,10 @@ end
 
 ###
 
+# reference solver.
+import Evolutionary
+const EVO = Evolutionary
+
 import SingleLinkagePartitions
 const SL = SingleLinkagePartitions
 
