@@ -8,7 +8,7 @@ function preparefuncs(X::Matrix{T}, Z::Matrix{T}, σ, A, w, γ, edges) where T <
     D, N = size(X)
 
     # function under test.
-    h = xx->compteϕXoptim!(
+    h = xx->computeϕXoptim!(
         #V_buf,
         #prox_V_buf,
         ##proxconj_V_buf,
@@ -75,7 +75,7 @@ end
 ##### for optim
 
 
-# function compteϕXoptim!(
+# function computeϕXoptim!(
 #     #V::Matrix{T},
 #     #prox_V::Matrix{T},
 #     #proxconj_V::Matrix{T},

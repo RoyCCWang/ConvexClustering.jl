@@ -27,14 +27,14 @@ function searchγ(
     problem_in::ProblemType{T,ET},
     optim_config::ALMConfigType{T},
     assignment_config::AbstractAssignmentConfigType,
-    search_config::SearchγConfigType;
+    search_config::Union{SearchγConfigType, SearchCoγConfigType};
     store_trace::Bool = true,
     store_trace_assignments::Bool = true,
     report_cost::Bool = true,
     ) where {T <: AbstractFloat, ET <: EdgeFormulation}
 
     E = problem_in.edge_set
-    max_iters, max_partition_size, getγfunc = search_config.max_iters, search_config.max_partition_size, search_config.getγfunc
+    max_iters, getγfunc = search_config.max_iters, search_config.getγfunc
 
     DT = getdualtype(E) # dual variable type.
     rets = Vector{ALMSolutionType{T, DT}}(undef, 1)
@@ -58,7 +58,7 @@ function searchγ(
     γs[begin] = γ
 
     # keep running if too many parts in the returned partition G.
-    while length(G) > max_partition_size && iter <= max_iters
+    while partitionislarger(G, search_config) && iter <= max_iters
 
         iter += 1
         γ = getγfunc(iter)
@@ -80,7 +80,7 @@ function searchγ(
             γs[begin] = γ
         end
 
-        if length(new_G) < max_partition_size
+        if partitionislarger(new_G, search_config)
             return Gs, rets, γs
         end
     end
@@ -88,6 +88,30 @@ function searchγ(
     return Gs, rets, γs
 end
 
+
+function partitionislarger(G::Vector{Vector{Int}}, search_config::SearchγConfigType)::Bool
+    return length(G) > search_config.max_partition_size
+end
+
+function partitionissmaller(G::Vector{Vector{Int}}, search_config::SearchγConfigType)::Bool
+    return length(G) > search_config.max_partition_size
+end
+
+function partitionislarger(G::CoAssignmentResult, search_config::SearchCoγConfigType)::Bool
+    
+    condition_col = length(G.col) > search_config.col_max_partition_size
+    condition_row = length(G.row) > search_config.row_max_partition_size
+
+    return condition_col && condition_row
+end
+
+function partitionissmaller(G::CoAssignmentResult, search_config::SearchCoγConfigType)::Bool
+    
+    condition_col = length(G.col) < search_config.col_max_partition_size
+    condition_row = length(G.row) < search_config.row_max_partition_size
+
+    return condition_col && condition_row
+end
 
 # only positive-valued kernel functions are allowed.
 """

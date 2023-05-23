@@ -147,13 +147,14 @@ end
 function computeV!(
     V::Matrix{T},
     BX::Matrix{T},
+    op_trait::MatrixOperationTrait,
     X::AbstractMatrix{T},
     Z::Matrix{T},
     λ::T,
     edge_pairs::Vector{Tuple{Int,Int}},
     ) where T <: AbstractFloat
 
-    evalB!(BX, X, edge_pairs)
+    evalB!(BX, op_trait, X, edge_pairs)
 
     for k in eachindex(V)
         V[k] = BX[k] + λ*Z[k]
@@ -164,7 +165,8 @@ end
 
 function computeV!(
     V::Matrix{T},
-    X::AbstractMatrix{T},
+    ::ColumnWise,
+    X::Matrix{T},
     Z::Matrix{T},
     λ::T,
     edge_pairs::Vector{Tuple{Int,Int}},
@@ -173,7 +175,7 @@ function computeV!(
     D, N = size(X)
     N_edges = length(edge_pairs)
 
-    @assert size(V,1) == D # I am here.
+    @assert size(V,1) == D
     @assert size(V,2) == N_edges
 
     for j in axes(V,2)
@@ -187,25 +189,51 @@ function computeV!(
     return nothing
 end
 
-function computeV(X::Matrix{T}, Z, λ::T, edge_pairs) where T <: AbstractFloat
+function computeV!(
+    V::Matrix{T},
+    ::RowWise,
+    X::Matrix{T},
+    Z::Matrix{T},
+    λ::T,
+    edge_pairs::Vector{Tuple{Int,Int}},
+    ) where T <: AbstractFloat
 
-    V = Matrix{T}(undef, size(Z))
+    D, N = size(X)
+    N_edges = length(edge_pairs)
 
-    computeV!(V, X, Z, λ, edge_pairs)
+    @assert size(V,1) == N
+    @assert size(V,2) == N_edges
 
-    return V
+    for j in axes(V,2)
+        a, b = edge_pairs[j]
+
+        for d in axes(V,1)
+            V[d,j] = X[a,d] - X[b,d] + λ*Z[d,j]
+        end
+    end
+
+    return nothing
 end
+
+# function computeV(X::Matrix{T}, Z, λ::T, edge_pairs) where T <: AbstractFloat
+
+#     V = Matrix{T}(undef, size(Z))
+
+#     computeV!(V, X, Z, λ, edge_pairs)
+
+#     return V
+# end
 
 ################################### compatible with co-clustering
 
 function computeV!(
     Q::BMapBuffer{T},
-    X::AbstractMatrix{T},
+    X::Matrix{T},
     λ::T,
     E::EdgeSet,
     ) where T <: AbstractFloat
 
-    return computeV!(Q.V, X, Q.Z, λ, E.edges)
+    return computeV!(Q.V, ColumnWise(), X, Q.Z, λ, E.edges)
 end
  
 function computeV!(
@@ -215,8 +243,8 @@ function computeV!(
     E::CoEdgeSet,
     ) where T <: AbstractFloat
 
-    computeV!(Q.col.V, X, Q.col.Z, λ, E.col.edges)
-    computeV!(Q.row.V, X', Q.row.Z, λ, E.row.edges)
+    computeV!(Q.col.V, ColumnWise(), X, Q.col.Z, λ, E.col.edges)
+    computeV!(Q.row.V, RowWise(), X, Q.row.Z, λ, E.row.edges)
 
     return nothing
 end
@@ -226,18 +254,22 @@ end
 
 function compteϕXoptimterms!(
     reg::BMapBuffer,
-    X::AbstractMatrix{T},
+    op_trait::MatrixOperationTrait,
+    X::Matrix{T},
     σ_buffer::Vector{T},
-    problem::ProblemType{T,EdgeSet{T}},
+    problem::ProblemType,
     )::Tuple{T,T} where T <: AbstractFloat
     
     _, γ, E = unpackspecs(problem)
     Z, V, prox_V = reg.Z, reg.V, reg.prox_V
-    w = E.w
+    
     σ =  σ_buffer[begin]
     λ = one(T)/σ
 
-    computeV!(V, X, Z, λ, E.edges)
+    w = getw(E, op_trait)
+    edges = getedges(E, op_trait)
+    
+    computeV!(V, op_trait, X, Z, λ, edges)
     proximaltp!(prox_V, V, w, γ, λ)
     p_prox_V = evalp(prox_V, w, γ)
 
@@ -247,14 +279,14 @@ function compteϕXoptimterms!(
     return p_prox_V, term3
 end
 
-function compteϕXoptim!(
+function computeϕXoptim!(
     reg::BMapBuffer,
     X::Matrix{T},
     σ_buffer::Vector{T},
     problem::ProblemType{T,EdgeSet{T}},
     )::T where T <: AbstractFloat
     
-    term2, term3 = compteϕXoptimterms!(reg, X, σ_buffer, problem)
+    term2, term3 = compteϕXoptimterms!(reg, ColumnWise(), X, σ_buffer, problem)
 
     A = problem.A
     term1 = (dot(X,X) + dot(A,A) - 2*dot(X,A))/2 # thi is norm(X-A,2)^2
@@ -262,15 +294,15 @@ function compteϕXoptim!(
     return term1 + term2 + term3
 end
 
-function compteϕXoptim!(
+function computeϕXoptim!(
     reg::CoBMapBuffer,
     X::Matrix{T},
     σ_buffer::Vector{T},
     problem::ProblemType{T,CoEdgeSet{T}},
     )::T where T <: AbstractFloat
     
-    term2_col, term3_col = compteϕXoptimterms!(reg.col, X, σ_buffer, problem)
-    term2_row, term3_row = compteϕXoptimterms!(reg.row, X', σ_buffer, problem)
+    term2_col, term3_col = compteϕXoptimterms!(reg.col, ColumnWise(), X, σ_buffer, problem)
+    term2_row, term3_row = compteϕXoptimterms!(reg.row, RowWise(), X, σ_buffer, problem)
 
     A = problem.A
     term1 = (dot(X,X) + dot(A,A) - 2*dot(X,A))/2 # thi is norm(X-A,2)^2
@@ -294,7 +326,7 @@ function computedϕoptim!(
     λ = one(T)/σ
 
     ## update pre-requisites.
-    computeV!(reg.V, X, reg.Z, λ, problem.edge_set.edges)
+    computeV!(reg.V, ColumnWise(), X, reg.Z, λ, problem.edge_set.edges)
     proximaltp!(reg.prox_V, reg.V, problem.edge_set.w, γ, λ)
 
     ## gradient.
@@ -323,11 +355,12 @@ function computedϕoptim!(
 
     ## update pre-requisites.
     # column edges.
-    computeV!(reg.col.V, X, reg.col.Z, λ, problem.edge_set.col.edges)
+    computeV!(reg.col.V, ColumnWise(), X, reg.col.Z, λ, problem.edge_set.col.edges)
     proximaltp!(reg.col.prox_V, reg.col.V, problem.edge_set.col.w, γ, λ)
 
     # row edges.
-    computeV!(reg.row.V, X', reg.row.Z, λ, problem.edge_set.row.edges)
+    #@show size(reg.row.V), size(reg.row.Z), size(problem.edge_set.row.edges) # debug
+    computeV!(reg.row.V, RowWise(), X, reg.row.Z, λ, problem.edge_set.row.edges)
     proximaltp!(reg.row.prox_V, reg.row.V, problem.edge_set.row.w, γ, λ)
     
     ## gradient.
@@ -380,15 +413,17 @@ function computedϕgivenproximaltp!(
     end
 
     # contribution from regularization terms.
-    applyproxcontribution!(out, reg.col.V, reg.col.prox_V, problem.edge_set.col.edges, σ)
-    applyproxcontribution!(out, reg.row.V, reg.row.prox_V, problem.edge_set.row.edges, σ)
+    applyproxcontribution!(out, ColumnWise(), reg.col.V, reg.col.prox_V, problem.edge_set.col.edges, σ)
+    applyproxcontribution!(out, RowWise(), reg.row.V, reg.row.prox_V, problem.edge_set.row.edges, σ)
 
     return nothing
 end
 
 # the computation of one proximal conjugation term for dϕ.
+# updates the output where the nodes in `edges` are columns of out.
 function applyproxcontribution!(
     out::Matrix{T},
+    ::ColumnWise,
     V::Matrix{T},
     prox_V::Matrix{T},
     edges::Vector{Tuple{Int,Int}},
@@ -405,6 +440,32 @@ function applyproxcontribution!(
 
         for d in axes(out,1)
             out[d,dest] -= (V[d,l]-prox_V[d,l])*σ
+        end
+    end
+
+    return nothing
+end
+
+# updates the output where the nodes in `edges` are rows of out.
+function applyproxcontribution!(
+    out::Matrix{T},
+    ::RowWise,
+    V::Matrix{T},
+    prox_V::Matrix{T},
+    edges::Vector{Tuple{Int,Int}},
+    σ::T,
+    ) where T
+
+    # σ*proxconj_V*J'. see applyJt!(), but no fill!(out, 0).
+    for l in eachindex(edges)
+        src, dest = edges[l]
+
+        for d in axes(out,2)
+            out[src,d] += (V[d,l]-prox_V[d,l])*σ
+        end
+
+        for d in axes(out,2)
+            out[dest,d] -= (V[d,l]-prox_V[d,l])*σ
         end
     end
 

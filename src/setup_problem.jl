@@ -64,7 +64,7 @@ function setupproblem(
     )
 end
 
-function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
+function getneighbourhoods(X::AbstractMatrix{T}, metric::Distances.Metric,
     connectivity::KNNSearchType)::Vector{Vector{Int}} where T
 
     neighbourhoods, knn = connectivity.searchfunc(X, metric)
@@ -73,7 +73,7 @@ function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
     return neighbourhoods
 end
 
-function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
+function getneighbourhoods(X::AbstractMatrix{T}, metric::Distances.Metric,
     connectivity::RadiusSearchType{ET})::Vector{Vector{Int}} where {T,ET}
 
     neighbourhoods, radius = connectivity.searchfunc(X, metric)
@@ -82,7 +82,7 @@ function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
     return neighbourhoods
 end
 
-function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
+function getneighbourhoods(X::AbstractMatrix{T}, metric::Distances.Metric,
     connectivity::KNNType{ET})::Vector{Vector{Int}} where {T,ET}
     #
     knn = connectivity.knn
@@ -98,7 +98,7 @@ function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
     return neighbourhoods
 end
 
-function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
+function getneighbourhoods(X::AbstractMatrix{T}, metric::Distances.Metric,
     connectivity::RadiusType{ET})::Vector{Vector{Int}} where {T,ET}
 
     radius = connectivity.radius
@@ -115,7 +115,7 @@ function getneighbourhoods(X::Matrix{T}, metric::Distances.Metric,
 end
 
 function constructgraph(
-    X::Matrix{T},
+    X::AbstractMatrix{T},
     metric::Distances.Metric,
     connectivity::AbstractConnectivityType{ET}) where {T<: AbstractFloat, ET}
 
@@ -132,7 +132,7 @@ function constructgraph(
 end
 
 # create graph from neighbourhoods, avoid self-loop because the same point will be assigned to the same part anyways in the assignment algorithm.
-function buildgraph(neighbourhoods::Vector{Vector{Int}}, X::Matrix{T}) where T
+function buildgraph(neighbourhoods::Vector{Vector{Int}}, X::AbstractMatrix{T}) where T
     N = size(X,2)
     h = Graphs.SimpleGraph(N)
 

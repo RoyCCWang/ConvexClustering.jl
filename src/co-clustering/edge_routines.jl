@@ -5,11 +5,11 @@
 
 # step 2 of algorithm 1 in (Sun, JMLR 2021)
 # mutates U.
-function computeU!(reg::BMapBuffer, X::Matrix{T}, γ::T, λ::T, edge_set::EdgeSet) where T <: AbstractFloat
+function computeU!(reg::BMapBuffer, op_trait::MatrixOperationTrait, X::Matrix{T}, γ::T, λ::T, edge_set::EdgeSet) where T <: AbstractFloat
 
     # the update for U is prox_V. See text near quation 20 in (Sun, JMLR 2021).
     residual = reg.residual
-    computeV!(reg.V, residual.BX, X, reg.Z, λ, edge_set.edges) # update V, BX given X, Z.
+    computeV!(reg.V, residual.BX, op_trait, X, reg.Z, λ, edge_set.edges) # update V, BX given X, Z.
     proximaltp!(residual.U, reg.V, edge_set.w, γ, λ)
 
     return nothing
@@ -17,10 +17,8 @@ end
 
 function computeU!(reg::CoBMapBuffer, X::Matrix{T}, γ::T, λ::T, edge_set::CoEdgeSet) where T <: AbstractFloat
 
-    # the update for U is prox_V. See text near quation 20 in (Sun, JMLR 2021).
-    residual = reg.col.residual
-    computeV!(reg.V, residual.BX, X', reg.Z, λ, edge_set.edges) # update V, BX given X, Z.
-    proximaltp!(residual.U, reg.V, edge_set.w, γ, λ)
+    computeU!(reg.col, ColumnWise(), X, γ, λ, edge_set.col)
+    computeU!(reg.row, RowWise(), X, γ, λ, edge_set.row)
 
     return nothing
 end
@@ -87,8 +85,8 @@ end
 # For a single regularizer.
 function computeKKTresiduals!(
     reg::BMapBuffer{T}, # mutates tmp buffers.
-    X,
-    A,
+    X::AbstractMatrix{T},
+    A::AbstractMatrix{T},
     γ::T,
     edge_set::EdgeSet,
     norm_A_p_1::T,
@@ -99,6 +97,8 @@ function computeKKTresiduals!(
     w = edge_set.w
 
     @assert size(A) == size(X)
+    @assert size(Z,1) == size(X,1)
+    @assert size(Z,2) == length(w)
 
     ### KKT gaps. page 22 and section 5.1 in (Sun, JMLR 2021).
     norm_U::T = norm(U,2)

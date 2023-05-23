@@ -84,7 +84,7 @@ abstract type AbstractAssignmentConfigType end
 
 struct AssignmentConfigType{T} <: AbstractAssignmentConfigType
     metric::Distances.Metric
-    assignment_zero_tol::T
+    zero_tol::T
 end
 
 struct CoAssignmentConfigType{T} <: AbstractAssignmentConfigType
@@ -154,6 +154,10 @@ end
 
 #### for use with subroutines called by runALM().
 
+abstract type MatrixOperationTrait end
+struct ColumnWise <: MatrixOperationTrait end
+struct RowWise <: MatrixOperationTrait end
+
 abstract type OperationTrait end
 struct Conventional <: OperationTrait end
 struct CoClustering <: OperationTrait end
@@ -169,6 +173,14 @@ function getNedges(A::EdgeSet)::Int
     return length(A.edges)
 end
 
+function getw(A::EdgeSet{T})::Vector{T} where T
+    return A.w
+end
+
+function getedges(A::EdgeSet)::Vector{Tuple{Int,Int}}
+    return A.edges
+end
+
 struct CoEdgeSet{T} <: EdgeFormulation
     col::EdgeSet{T}
     row::EdgeSet{T}
@@ -176,6 +188,22 @@ end
 
 function getNedges(A::CoEdgeSet)::Int
     return getNedges(A.col) + getNedges(A.row)
+end
+
+function getw(A::CoEdgeSet{T}, ::RowWise)::Vector{T} where T
+    return A.row.w
+end
+
+function getw(A::CoEdgeSet{T}, ::ColumnWise)::Vector{T} where T
+    return A.col.w
+end
+
+function getedges(A::CoEdgeSet, ::RowWise)::Vector{Tuple{Int,Int}}
+    return A.row.edges
+end
+
+function getedges(A::CoEdgeSet, ::ColumnWise)::Vector{Tuple{Int,Int}}
+    return A.col.edges
 end
 
 # traits.
@@ -327,15 +355,19 @@ struct CoBMapBuffer{T} <: RegularizationBuffer
     row::BMapBuffer{T}
 end
 
-function getZbuffer(dual::ALMDualVar{T}, N::Integer)::BMapBuffer{T} where T
+function getZbuffer(dual::ALMDualVar{T}, problem::ProblemType)::BMapBuffer{T} where T
+    N = size(problem.A, 2)
     return BMapBuffer(dual.Z, N)
 end
 
-function getZbuffer(dual::ALMCoDualVar{T}, N::Integer)::CoBMapBuffer{T} where T
+function getZbuffer(dual::ALMCoDualVar{T}, problem::ProblemType)::CoBMapBuffer{T} where T
+
+    N_col = size(problem.A, 2)
+    N_row = size(problem.A, 1)
 
     return CoBMapBuffer(
-        BMapBuffer(dual.col.Z, N),
-        BMapBuffer(dual.row.Z, N),
+        BMapBuffer(dual.col.Z, N_col),
+        BMapBuffer(dual.row.Z, N_row),
     )
 end
 
@@ -440,6 +472,13 @@ struct SearchγConfigType
     getγfunc::Function # iteration_number::Int ↦ γ::T
 end
 
+struct SearchCoγConfigType
+    max_iters::Int
+    col_max_partition_size::Int
+    row_max_partition_size::Int
+    getγfunc::Function # iteration_number::Int ↦ γ::T
+end
+
 ### search sequence for kernel parameter, config.
 struct SearchθConfigType{T}
     max_iters::Int
@@ -464,3 +503,4 @@ struct CoAssignmentResult
     col::Vector{Vector{Int}}
     row::Vector{Vector{Int}}
 end
+

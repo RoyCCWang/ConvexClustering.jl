@@ -19,7 +19,7 @@ function runconvexclustering(
     ret = runALM(X0, ALMDualVar(Z0), problem, optim_config; store_trace = store_trace)
 
     G, g_neighbourhoods = assignviaX(ret.X_star, assignment_config.metric;
-        zero_tol = assignment_config.assignment_zero_tol)
+        zero_tol = assignment_config.zero_tol)
 
     if report_cost
         cost = primaldirect(ret.X_star,problem)
@@ -66,10 +66,11 @@ function runconvexclustering(
 
         sol_gaps = round.(ret.gaps, sigdigits = 4)
 
-        partition_size = length(G)
+        partition_size_col = length(G_col)
+        partition_size_row = length(G_row)
         cc_iters = ret.num_iters_ran
 
-        @show (problem.γ, cost, sol_gaps, cc_iters, partition_size)
+        @show (problem.γ, cost, sol_gaps, cc_iters, partition_size_col, partition_size_row)
     end
 
     return CoAssignmentResult(G_col, G_row), ret

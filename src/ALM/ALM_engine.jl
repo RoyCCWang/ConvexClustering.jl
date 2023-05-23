@@ -38,7 +38,14 @@ function runALM(
     @assert size(X_initial) == size(A)
 
     # # variables.
-    reg = getZbuffer(dual_initial, N)
+    reg = getZbuffer(dual_initial, problem)
+
+    # debug
+    # @show size(reg.col.V), size(reg.row.V)
+    # @show size(reg.col.Z), size(reg.row.Z)
+    # @show size(dual_initial.col.Z), size(dual_initial.row.Z)    
+    # @assert 1==2
+    # end debug
 
     #Z::Matrix{T} = copy(Z_initial)
     x::Vector{T} = vec(copy(X_initial))
@@ -49,7 +56,7 @@ function runALM(
     σ_buffer::Vector{T} = [σ_base;]
     
     # setup subproblem cost function and derivative.
-    ϕ = xx->compteϕXoptim!(
+    ϕ = xx->computeϕXoptim!(
         reg,
         reshape(xx,D,N),
         σ_buffer,
@@ -71,7 +78,7 @@ function runALM(
     gaps::Vector{T} = ones(T, 3) .* Inf
     x_star = Vector{T}(undef, length(x))
     #Z_prev = copy(Z_initial)
-    reg_prev = getZbuffer(dual_initial, N)
+    reg_prev = getZbuffer(dual_initial, problem)
     trace = TraceType(traitof(edge_set), T, 0)
     if store_trace
         resizetrace!(trace, traitof(edge_set), max_iters)
@@ -153,7 +160,7 @@ function ALMSolutionType(
     iter::Int,
     gaps::Vector{T},
     trace::TraceType{T},
-    )::ALMSolutionType{T,ALMDualVar{T}} where T
+    )::ALMSolutionType{T,ALMCoDualVar{T}} where T
 
     return ALMSolutionType(
         X_star,
@@ -219,6 +226,22 @@ function computeteALMKKTgaps!(
     # @assert norm_A_p_1 > one(T)
     @assert size(X) == size(BadjZ)
     @assert size(Z) == size(U) == size(BX) == size(V)
+
+    ## updates/mutates Z, U, BX, V.
+    #updateZ!(reg, X, γ, σ, edge_set)
+    computeU!(reg, X, problem.γ, one(T)/σ, problem.edge_set)
+    updateZ!(reg, σ)
+
+    return computeKKTresiduals!(reg, X, problem, norm_A_p_1)
+end
+
+function computeteALMKKTgaps!(
+    X::Matrix{T},
+    reg::CoBMapBuffer{T},
+    problem::ProblemType{T,CoEdgeSet{T}},
+    σ::T,
+    norm_A_p_1::T,
+    )::Tuple{T,T,T} where T <: AbstractFloat
 
     ## updates/mutates Z, U, BX, V.
     #updateZ!(reg, X, γ, σ, edge_set)

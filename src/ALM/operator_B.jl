@@ -7,7 +7,7 @@
 # faster than X*J, X is dense matrix, J is sparse matrix.
 #function evalB!(BX::Matrix{T}, X::Matrix{T}, J) where T <: AbstractFloat
 # each `edge_pairs` entry contains a pair of indices. Each is a column index of X.
-function evalB!(BX::Matrix{T}, X::Matrix{T}, edge_pairs::Vector{Tuple{Int,Int}}) where T <: AbstractFloat
+function evalB!(BX::Matrix{T}, ::ColumnWise, X::Matrix{T}, edge_pairs::Vector{Tuple{Int,Int}}) where T <: AbstractFloat
 
     D, N = size(X)
     N_edges = length(edge_pairs)
@@ -20,6 +20,29 @@ function evalB!(BX::Matrix{T}, X::Matrix{T}, edge_pairs::Vector{Tuple{Int,Int}})
 
         for d in axes(BX,1)
             BX[d,j] = X[d,a] - X[d,b]
+        end
+    end
+
+    return nothing
+end
+
+function evalB!(BX::Matrix{T}, X::Matrix{T}, edge_pairs::Vector{Tuple{Int,Int}}) where T <: AbstractFloat
+    evalB!(BX, ColumnWise(), X, edge_pairs)
+end
+
+function evalB!(BX::Matrix{T}, ::RowWise, X::Matrix{T}, edge_pairs::Vector{Tuple{Int,Int}}) where T <: AbstractFloat
+
+    D, N = size(X)
+    N_edges = length(edge_pairs)
+
+    @assert size(BX,1) == N
+    @assert size(BX,2) == N_edges
+
+    for j in axes(BX,2)
+        a, b = edge_pairs[j]
+
+        for d in axes(BX,1)
+            BX[d,j] = X[a,d] - X[b,d]
         end
     end
 

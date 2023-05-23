@@ -20,29 +20,32 @@ data_col_vecs = collect( vec(data_mat[:,n]) for n in axes(data_mat, 2) )
 data_row_vecs = collect( vec(data_mat[n,:]) for n in axes(data_mat, 1) )
 
 #distance_threshold = (maximum(data_mat) - minimum(data_mat))/10
-distance_threshold_col = 6.5
-distance_threshold_row = 8.5
+# distance_threshold_col = 6.5
+# distance_threshold_row = 6.3
+distance_threshold = 7.0
 
 #
 SL_col, SL_colstatus, SL_col_partitions, SL_col_distances,
 SL_col_terminal_ind = SL.mergepointsfull(
     data_col_vecs,
     metricfunc;
-    tol = distance_threshold_col,
+    #tol = distance_threshold_col,
+    tol = distance_threshold,
 )
 SL_col_part = SL_col_partitions[SL_col_terminal_ind]
 @show length(SL_col_part)
 
-#
-SL_row, SL_rowstatus, SL_row_partitions, SL_row_distances,
-SL_row_terminal_ind = SL.mergepointsfull(
-    data_row_vecs,
-    metricfunc;
-    tol = distance_threshold_row,
-)
-SL_row_part = SL_row_partitions[SL_row_terminal_ind]
-@show length(SL_row_part)
+# #
+# SL_row, SL_rowstatus, SL_row_partitions, SL_row_distances,
+# SL_row_terminal_ind = SL.mergepointsfull(
+#     data_row_vecs,
+#     metricfunc;
+#     tol = distance_threshold_row,
+# )
+# SL_row_part = SL_row_partitions[SL_row_terminal_ind]
+# @show length(SL_row_part)
 
+#@assert 1==2
 
 ###### search.
 
@@ -55,10 +58,16 @@ kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does
 # regularization parameter search.
 γ_base = 0.01
 γ_rate = 1.05
-max_partition_size = 13#length(data[1]) + 2
+col_max_partition_size = 13
+row_max_partition_size = 13
 max_iters_γ = 100
 getγfunc = nn->evalgeometricsequence(nn-1, γ_base, γ_rate)
-config_γ = ConvexClustering.SearchγConfigType(max_iters_γ, max_partition_size, getγfunc)
+config_γ = ConvexClustering.SearchCoγConfigType(
+    max_iters_γ,
+    col_max_partition_size,
+    row_max_partition_size,
+    getγfunc,
+)
 
 # convex clustering optimization algorithm configuration.
 σ_base = 0.4
@@ -81,8 +90,18 @@ verbose_subproblem = false
 report_cost = true # want to see the objective score per θ run or γ run.
 store_trace = true
 
+# column j of A_col or A_row is the j-th point in the set to be partitioned.
 A_col, edges_col, w_col, neighbourhood_col, θs_col = preparedatagraph(SL_col)
-A_row, edges_row, w_row, neighbourhood_row, θs_row = preparedatagraph(SL_row)
+
+A_row_vecs = collect( vec(A_col[n,:]) for n in axes(A_col,1) )
+A_row, edges_row, w_row, neighbourhood_row, θs_row = preparedatagraph(
+    A_row_vecs;
+    knn = 30,
+)
+
+@show length(w_col), length(w_row)
+
+#@assert 1==3
 
 # initialize γ to NaN since it will be replaced by the search sequence in config_γ = getγfunc
 problem = CC.ProblemType(
@@ -90,21 +109,22 @@ problem = CC.ProblemType(
     NaN,
     CC.CoEdgeSet(
         CC.EdgeSet(w_col, edges_col),
-        CC.EdgeSet(w_col, edges_col),
+        CC.EdgeSet(w_row, edges_row),
     ),
 )
 
 
 
 ### initial guess.
-D, N = size(A_col)
+D_col, N_col = size(A_col)
+D_row, N_row = size(A_row)
 N_edges_col = length(edges_col)
 N_edges_row = length(edges_row)
 
-X0 = zeros(D, N)
+X0 = zeros(D_col, N_col)
 dual_initial = CC.ALMCoDualVar(
-    CC.ALMDualVar(zeros(D, N_edges_col)),
-    CC.ALMDualVar(zeros(D, N_edges_row)),
+    CC.ALMDualVar(zeros(D_col, N_edges_col)),
+    CC.ALMDualVar(zeros(D_row, N_edges_row)),
 )
 
 # assignment.
@@ -122,7 +142,8 @@ assignment_config = CC.CoAssignmentConfigType(assignment_config_col, assignment_
 Gs_cc, rets, γs = ConvexClustering.searchγ(
     X0, dual_initial, problem, optim_config, assignment_config, config_γ;
     store_trace = store_trace,
-    report_cost = report_cost)
+    report_cost = report_cost,
+)
 G_cc_last = Gs_cc[end]
 iters_γ = length(γs)
 
