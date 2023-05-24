@@ -79,7 +79,7 @@ function loadresult(
     all_file_paths = readdir(project_folder, join  = true)
     inds = findall(
         xx->(
-            occursin("co_gamma_$(γ)", xx) && occursin(".bson", xx)
+            occursin("co_gamma_$(γ)_", xx) && occursin(".bson", xx)
         ),
         all_file_paths,
     )
