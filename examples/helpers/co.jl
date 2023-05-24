@@ -58,3 +58,55 @@ function preparedatagraph(
     return A, edges, w, neighbourhood, θs 
 end
 
+function loadresult(
+    A_col::Matrix{T},
+    γ::T,
+    σ_base::T,
+    N_edges_col::Integer,
+    N_edges_row::Integer,
+    project_folder::String,
+    ) where T
+
+    # default
+    X0 = copy(A_col)
+
+    dual_initial = CC.ALMCoDualVar(
+        CC.ALMDualVar(zeros(T, D_col, N_edges_col)),
+        CC.ALMDualVar(zeros(T, D_row, N_edges_row)),
+    )
+
+    # load if we already have a result saved.
+    all_file_paths = readdir(project_folder, join  = true)
+    inds = findall(
+        xx->(
+            occursin("co_gamma_$(γ)", xx) && occursin(".bson", xx)
+        ),
+        all_file_paths,
+    )
+
+    if !isempty(inds)
+
+        file_paths = all_file_paths[inds]
+
+        date_list = Dates.unix2datetime.(mtime.(file_paths))
+        val, ind = findmax(date_list) # maximum of dates means the most recent file.
+        load_path = file_paths[ind]
+        println("Loading from ", load_path)
+        println()
+
+        dic = BSON.load(load_path)
+        X0 = dic[:X_star]
+        
+        Z0_col = dic[:Z_star_col]
+        Z0_row = dic[:Z_star_row]
+
+        dual_initial = CC.ALMCoDualVar(
+            CC.ALMDualVar(Z0_col),
+            CC.ALMDualVar(Z0_row),
+        )
+
+        σ_base = dic[:last_sigma]
+    end
+
+    return X0, dual_initial, σ_base, length(inds)
+end

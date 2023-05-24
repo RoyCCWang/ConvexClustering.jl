@@ -14,9 +14,18 @@ function runconvexclustering(
     optim_config::ALMConfigType{T},
     assignment_config::AssignmentConfigType{T};
     store_trace::Bool = false,
-    report_cost = false) where T <: AbstractFloat
+    report_cost = false,
+    verbose_ALM = false,
+    ) where T <: AbstractFloat
 
-    ret = runALM(X0, ALMDualVar(Z0), problem, optim_config; store_trace = store_trace)
+    ret = runALM(
+        X0,
+        ALMDualVar(Z0),
+        problem,
+        optim_config;
+        store_trace = store_trace,
+        verbose = verbose_ALM,
+    )
 
     G, g_neighbourhoods = assignviaX(ret.X_star, assignment_config.metric;
         zero_tol = assignment_config.zero_tol)
@@ -43,11 +52,14 @@ function runconvexclustering(
     optim_config::ALMConfigType{T},
     assignment_config::AssignmentConfigType{T};
     store_trace::Bool = false,
-    report_cost = false) where T <: AbstractFloat
+    report_cost = false,
+    verbose_ALM = false,
+    ) where T <: AbstractFloat
     
     return runconvexclustering(X0, dual0.Z, problem, optim_config, assignment_config;
         store_trace = store_trace,
         report_cost = report_cost,
+        verbose_ALM = verbose_ALM,
     )
 end
 
@@ -59,10 +71,19 @@ function runconvexclustering(
     optim_config::ALMConfigType{T},
     ac::CoAssignmentConfigType{T};
     store_trace::Bool = false,
-    report_cost = false) where T <: AbstractFloat
+    report_cost = false,
+    verbose_ALM = false,
+    ) where T <: AbstractFloat
 
     assignment_config_col, assignment_config_row = ac.col, ac.row
-    ret = runALM(X0, dual0, problem, optim_config; store_trace = store_trace)
+    ret = runALM(
+        X0,
+        dual0,
+        problem,
+        optim_config;
+        store_trace = store_trace,
+        verbose = verbose_ALM,
+    )
 
     G_col, g_neighbourhoods_col = assignviaX(
         ret.X_star,

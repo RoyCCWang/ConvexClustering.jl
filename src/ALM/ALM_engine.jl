@@ -26,6 +26,7 @@ function runALM(
     problem::ProblemType{T,ET},
     config::ALMConfigType{T};
     store_trace::Bool = false,
+    verbose = false,
     ) where {T <: AbstractFloat, ET <: EdgeFormulation}
 
     # unpack, parse, checks
@@ -123,6 +124,10 @@ function runALM(
             # trace.diff_Z[iter] = evalnorm2sq(Z_prev, Z)
             # Z_prev[:] = Z
             storetrace!(trace, reg, reg_prev, iter)
+        end
+
+        if verbose
+            @show iter, gaps
         end
 
         # update.

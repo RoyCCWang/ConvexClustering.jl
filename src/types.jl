@@ -146,8 +146,13 @@ function ALMConfigType(gap_tol::T;
     updateσfunc::Function = nn::Int->convert(T, 0.4*1.05^(nn-1)), # -1 because we start on iteration 1.
     updateϵfunc::Function = nn::Int->convert(T, 1/(nn-1)^2)) where T <: AbstractFloat
 
-    return ALMConfigType(runoptimfunc, updateσfunc, updateϵfunc,
-        max_iters, gap_tol)
+    return ALMConfigType(
+        runoptimfunc,
+        updateσfunc,
+        updateϵfunc,
+        max_iters,
+        gap_tol,
+    )
 end
 
 

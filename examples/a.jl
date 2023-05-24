@@ -9,6 +9,7 @@ using BenchmarkTools
 import CSV
 import TypedTables
 using DelimitedFiles
+import BSON
 
 #import Optim
 #include("./helpers/optim.jl")

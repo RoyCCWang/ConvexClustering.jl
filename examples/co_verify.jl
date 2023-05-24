@@ -4,7 +4,7 @@ T = Float64
 include("./helpers/co.jl")
 
 metricfunc = (xx,yy)->norm(xx-yy)
-
+project_folder = joinpath(homedir(), "MEGASync/output/convex_clustering")
 
 table = CSV.read("./data/CCLE_metabolomics_20190502.csv", TypedTables.Table)
 
@@ -30,7 +30,10 @@ metric = Distances.Euclidean()
 kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does not output negative numbers.
 
 # regularization parameter search.
-γ = 0.0
+#γ = 0.0
+#γ = 1e-3
+#γ = 1.0 # first process.
+γ = 10.0 # second process.
 #γ = 10.5
 #γ = 100.5
 max_iters_γ = 100
@@ -133,11 +136,19 @@ D_row, N_row = size(A_row)
 N_edges_col = length(edges_col)
 N_edges_row = length(edges_row)
 
-X0 = zeros(D_col, N_col)
+# default.
+#X0 = zeros(D_col, N_col)
+X0 = copy(A_col)
+
 dual_initial = CC.ALMCoDualVar(
     CC.ALMDualVar(zeros(D_col, N_edges_col)),
     CC.ALMDualVar(zeros(D_row, N_edges_row)),
 )
+
+# if we've already done a run.
+X0, dual_initial, σ_base, file_counter = loadresult(A_col, γ, σ_base, N_edges_col, N_edges_row, project_folder)
+
+#@assert 1==2
 
 # assignment.
 assignment_zero_tol = 1e-3
@@ -159,11 +170,30 @@ G, ret = ConvexClustering.runconvexclustering(
     assignment_config;
     store_trace = store_trace,
     report_cost = report_cost,
+    verbose_ALM = true,
 )
 
 if isapprox(γ, zero(T))
     @show norm(ret.X_star - A_col)
 end
+
+file_counter += 1
+
+BSON.bson(
+
+    joinpath(
+        project_folder,
+        "co_gamma_$(γ)_$(file_counter).bson",
+    ),
+    X_star = ret.X_star,
+    Z_star_col = ret.dual_star.col.Z,
+    Z_star_row = ret.dual_star.row.Z,
+    num_iters_ran = ret.num_iters_ran,
+    gaps = ret.gaps,
+    last_sigma = updateσfunc(ret.num_iters_ran),
+)
+
+
 
 
 # #
