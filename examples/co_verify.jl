@@ -37,9 +37,15 @@ kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does
 
 # regularization parameter search.
 #γ = 0.0
+
 #γ = 1e-3
-#γ = 10.0 # first process.
-γ = 100.0 # second process.
+#γ = 1e-2
+
+#γ = 1e-1 # 1, 11
+#γ = 0.5 # (r,c) G size: 1, 5
+
+#γ = 1.0
+
 max_iters_γ = 100
 getγfunc = nn->evalgeometricsequence(nn-1, γ_base, γ_rate)
 
@@ -62,7 +68,6 @@ optim_config = ConvexClustering.ALMConfigType(
 )
 
 # verbose, trace, and stopping condition configs.
-verbose_subproblem = false
 report_cost = true # want to see the objective score per θ run or γ run.
 store_trace = true
 
@@ -182,7 +187,8 @@ if isapprox(γ, zero(T))
     @show norm(ret.X_star - A_col)
 end
 
-file_counter += 1
+#file_counter += 1
+file_counter = 0
 
 BSON.bson(
 
@@ -196,10 +202,15 @@ BSON.bson(
     num_iters_ran = ret.num_iters_ran,
     gaps = ret.gaps,
     last_sigma = updateσfunc(ret.num_iters_ran),
+    G = G,
 )
 
 
+@show length(G.row), length(G.col)
 
+dic = BSON.load(
+    joinpath(project_folder, "co_gamma_0.01_2.bson"),
+)
 
 # #
 # objfunc = xx->CC.primaldirect( reshape(xx, size(X0)), problem)

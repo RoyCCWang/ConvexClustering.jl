@@ -4,7 +4,7 @@ T = Float64
 include("./helpers/co.jl")
 
 metricfunc = (xx,yy)->norm(xx-yy)
-
+project_folder = joinpath(homedir(), "MEGASync/output/convex_clustering/reduced")
 
 table = CSV.read("./data/CCLE_metabolomics_20190502.csv", TypedTables.Table)
 
@@ -13,7 +13,11 @@ csv_mat = readdlm("./data/CCLE_metabolomics_20190502.csv", ',', Any)
 
 data_mat_full = convert(Matrix{T}, csv_mat[2:end, 3:end])
 
-data_mat = data_mat_full[1:100, :]
+# debug.
+# reduce for determining if gap calculation has a bug.
+#data_mat = data_mat_full[1:100,:]
+data_mat = data_mat_full
+# end debug
 
 col_headings = vec(csv_mat[1, 3:end])
 row_headings = vec(csv_mat[2:end, 1])
@@ -61,11 +65,13 @@ metric = Distances.Euclidean()
 kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does not output negative numbers.
 
 # regularization parameter search.
-#γ_base = 0.01
-γ_base = 10.0
+#γ_base = 0.005
+# γ_base = 0.01 # 0.018 still singletons.
+γ_base = 0.1
+#γ_base = 10.0
 γ_rate = 1.05
-col_max_partition_size = 13
-row_max_partition_size = 13
+col_max_partition_size = 2
+row_max_partition_size = 2
 max_iters_γ = 100
 getγfunc = nn->evalgeometricsequence(nn-1, γ_base, γ_rate)
 config_γ = ConvexClustering.SearchCoγConfigType(
@@ -99,18 +105,32 @@ store_trace = true
 # column j of A_col or A_row is the j-th point in the set to be partitioned.
 A_col, edges_col, w_col, neighbourhood_col, θs_col = preparedatagraph(
     SL_col;
-    knn = 30,
+    #knn = 30,
+    knn = length(SL_col)-1,
 )
 
 A_row_vecs = collect( vec(A_col[n,:]) for n in axes(A_col,1) )
-A_row, edges_row, w_row, neighbourhood_row, θs_row = preparedatagraph(
-    A_row_vecs;
-    knn = 30,
+knn = length(A_row_vecs)-1
+connectivity = CC.KNNType(knn)
+#θ = 0.0005
+#θ = 0.005
+θ = 0.015 # yields large dynamic range: ~0.8
+#θ = 0.05
+#θ = 0.5
+A_row, edges_row, w_row, neighbourhoods_row = CC.setupproblem(
+    A_row_vecs,
+    θ,
+    connectivity;
+    metric = metric,
+    kernelfunc = kernelfunc,
 )
+w_max = maximum(w_row)
+w_min = minimum(w_row)
+@show w_min, w_max, abs(w_max-w_min)
+
 
 @show length(w_col), length(w_row)
 
-@assert 1==3
 
 # initialize γ to NaN since it will be replaced by the search sequence in config_γ = getγfunc
 problem = CC.ProblemType(
@@ -130,11 +150,15 @@ D_row, N_row = size(A_row)
 N_edges_col = length(edges_col)
 N_edges_row = length(edges_row)
 
-X0 = zeros(D_col, N_col)
+# default.
+#X0 = zeros(D_col, N_col)
+X0 = copy(A_col)
+
 dual_initial = CC.ALMCoDualVar(
     CC.ALMDualVar(zeros(D_col, N_edges_col)),
     CC.ALMDualVar(zeros(D_row, N_edges_row)),
 )
+
 
 # assignment.
 assignment_zero_tol = 1e-3
@@ -149,12 +173,31 @@ assignment_config = CC.CoAssignmentConfigType(assignment_config_col, assignment_
 
 ### run optimization.
 Gs_cc, rets, γs = ConvexClustering.searchγ(
-    X0, dual_initial, problem, optim_config, assignment_config, config_γ;
+    X0,
+    dual_initial,
+    problem,
+    optim_config,
+    assignment_config,
+    config_γ;
     store_trace = store_trace,
     report_cost = report_cost,
 )
 G_cc_last = Gs_cc[end]
 iters_γ = length(γs)
+
+BSON.bson(
+
+    joinpath(
+        project_folder,
+        "full_$(γ_base).bson",
+    ),
+    γs = γs,
+    rets = rets,
+    Gs_cc = Gs_cc,
+    γ_base = γ_base,
+    γ_rate = γ_rate,
+)
+
 
 @assert 1==2
 
