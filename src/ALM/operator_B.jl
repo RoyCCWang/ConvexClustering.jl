@@ -257,3 +257,95 @@ function setupB(X::Matrix{T}, edge_pairs::Vector{Tuple{Int,Int}}) where T <: Abs
 
     return updateBXfunc, BX, updateBadjZfunc, BadjZ
 end
+
+function computepdgap(
+    reg::BMapBuffer{T}, # mutates tmp buffers.
+    X::AbstractMatrix{T},
+    A::AbstractMatrix{T},
+    γ::T,
+    edge_set::EdgeSet,
+    norm_A_p_1::T,
+    norm_U_factor::T,
+    )::T where T
+
+    U, BX, prox_U_plus_Z, U_plus_Z, BadjZ = unpackbuffer(reg.residual)
+    w = edge_set.w
+
+    ## primal-dual.
+
+    # pd1, first term in numerator.
+    #   (a+b-c)^2 = a^2 + 2ab - 2ac + b^2 - 2bc + c^2
+    #applyJt!(BadjZ, Z, src_nodes, dest_nodes)
+    applyJt!(BadjZ, Z, edge_set.edges)
+    # a = BadjZ
+    # b = X
+    # c = A
+    #norm_c = abs(norm_A_p_1 - one(T)) # abs() in case of numerical precision issues.
+    #norm_a_plus_b_minus_c = dot(a,a) + 2*dot(a,b) - 2*dot(a,c) + dot(b,b) - 2*dot(b,c) + norm_c*norm_c
+    #pd1::T = sqrt(norm_a_plus_b_minus_c)
+    pd1 = norm(BadjZ .+ X .- A, 2)
+
+    # pd2, second term in numberator.
+    pd2 = computepd2gap(reg, γ, edge_set)
+
+    primal_dual_gap = (pd1+pd2)/(norm_A_p_1 + norm_U_factor)
+
+    return primal_dual_gap
+end
+
+function computepdgap(
+    reg::CoBMapBuffer{T}, # mutates tmp buffers.
+    X::AbstractMatrix{T},
+    A::AbstractMatrix{T},
+    γ::T,
+    edge_set::CoEdgeSet,
+    norm_A_p_1::T,
+    norm_U_factor::T,
+    )::T where T
+
+    _, _, _, _, BadjZ_col = unpackbuffer(reg.col.residual)
+    _, _, _, _, BadjZ_row = unpackbuffer(reg.row.residual)
+    #w = edge_set.w
+
+    ## primal-dual.
+
+    # pd1, first term in numerator.
+    #   (a+b-c)^2 = a^2 + 2ab - 2ac + b^2 - 2bc + c^2
+    #applyJt!(BadjZ, Z, src_nodes, dest_nodes)
+    applyJt!(BadjZ_col, reg.col.Z, edge_set.col.edges)
+    applyJt!(BadjZ_row, reg.row.Z, edge_set.row.edges)
+
+    pd1 = norm(BadjZ_col .+ BadjZ_row' .+ X .- A, 2)
+
+    # pd2, second term in numberator.
+    pd2_col = computepd2gap(reg.col, γ, edge_set.col)
+    pd2_row = computepd2gap(reg.row, γ, edge_set.row)
+
+    primal_dual_gap = (pd1 + pd2_col + pd2_row)/(norm_A_p_1 + norm_U_factor)
+
+    return primal_dual_gap
+end
+
+# assumes U has been updated!
+function computepd2gap(
+    reg::BMapBuffer{T}, # mutates tmp buffers.
+    γ::T,
+    edge_set::EdgeSet,
+    )::T where T
+
+    U, BX, prox_U_plus_Z, U_plus_Z, BadjZ = unpackbuffer(reg.residual)
+    w = edge_set.w
+    Z = reg.Z
+
+    ## primal-dual
+
+    # pd2, second term in numberator.
+    # overwrite the temp. buffer `U_plus_Z`.
+    for i in eachindex(U_plus_Z)
+        U_plus_Z[i] = U[i] + Z[i]
+    end
+    proximaltp!(prox_U_plus_Z, U_plus_Z, w, γ, one(T))
+    pd2 = sqrt(evalnorm2sq(U, prox_U_plus_Z))
+
+    return pd2
+end

@@ -4,14 +4,20 @@ T = Float64
 include("./helpers/co.jl")
 
 metricfunc = (xx,yy)->norm(xx-yy)
-project_folder = joinpath(homedir(), "MEGASync/output/convex_clustering")
+project_folder = joinpath(homedir(), "MEGASync/output/convex_clustering/reduced")
 
 table = CSV.read("./data/CCLE_metabolomics_20190502.csv", TypedTables.Table)
 
 # each row is a data point. column i is the i-th attribute
 csv_mat = readdlm("./data/CCLE_metabolomics_20190502.csv", ',', Any)
 
-data_mat = convert(Matrix{T}, csv_mat[2:end, 3:end])
+data_mat_full = convert(Matrix{T}, csv_mat[2:end, 3:end])
+
+# debug.
+# reduce for determining if gap calculation has a bug.
+#data_mat = data_mat_full[1:100,:]
+data_mat = data_mat_full
+# end debug
 
 col_headings = vec(csv_mat[1, 3:end])
 row_headings = vec(csv_mat[2:end, 1])
@@ -32,9 +38,9 @@ kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does
 # regularization parameter search.
 #γ = 0.0
 #γ = 1e-3
-#γ = 1.0 # first process.
-γ = 10.0 # second process.
-#γ = 10.5
+#γ = 1.0
+#γ = 10.0 # first process.
+γ = 100.0 # second process.
 #γ = 100.5
 max_iters_γ = 100
 getγfunc = nn->evalgeometricsequence(nn-1, γ_base, γ_rate)
@@ -145,8 +151,8 @@ dual_initial = CC.ALMCoDualVar(
     CC.ALMDualVar(zeros(D_row, N_edges_row)),
 )
 
-# if we've already done a run.
-X0, dual_initial, σ_base, file_counter = loadresult(A_col, γ, σ_base, N_edges_col, N_edges_row, project_folder)
+# # if we've already done a run.
+# X0, dual_initial, σ_base, file_counter = loadresult(A_col, γ, σ_base, N_edges_col, N_edges_row, project_folder)
 
 #@assert 1==2
 

@@ -11,13 +11,16 @@ table = CSV.read("./data/CCLE_metabolomics_20190502.csv", TypedTables.Table)
 # each row is a data point. column i is the i-th attribute
 csv_mat = readdlm("./data/CCLE_metabolomics_20190502.csv", ',', Any)
 
-data_mat = convert(Matrix{T}, csv_mat[2:end, 3:end])
+data_mat_full = convert(Matrix{T}, csv_mat[2:end, 3:end])
+
+data_mat = data_mat_full[1:100, :]
 
 col_headings = vec(csv_mat[1, 3:end])
 row_headings = vec(csv_mat[2:end, 1])
 
 data_col_vecs = collect( vec(data_mat[:,n]) for n in axes(data_mat, 2) )
 data_row_vecs = collect( vec(data_mat[n,:]) for n in axes(data_mat, 1) )
+#@assert 1==2
 
 # #distance_threshold = (maximum(data_mat) - minimum(data_mat))/10
 # # distance_threshold_col = 6.5

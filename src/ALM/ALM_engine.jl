@@ -219,34 +219,18 @@ end
 # mutates Z, U, V, BX
 function computeteALMKKTgaps!(
     X::Matrix{T},
-    reg::BMapBuffer{T},
-    problem::ProblemType{T,EdgeSet{T}},
+    reg::RegularizationBuffer,
+    problem::ProblemType,
     σ::T,
     norm_A_p_1::T,
     )::Tuple{T,T,T} where T <: AbstractFloat
 
-    Z, V = reg.Z, reg.V
-    U, BX, _, _, BadjZ = unpackbuffer(reg.residual)
+    # Z, V = reg.Z, reg.V
+    # U, BX, _, _, BadjZ = unpackbuffer(reg.residual)
 
     # @assert norm_A_p_1 > one(T)
-    @assert size(X) == size(BadjZ)
-    @assert size(Z) == size(U) == size(BX) == size(V)
-
-    ## updates/mutates Z, U, BX, V.
-    #updateZ!(reg, X, γ, σ, edge_set)
-    computeU!(reg, X, problem.γ, one(T)/σ, problem.edge_set)
-    updateZ!(reg, σ)
-
-    return computeKKTresiduals!(reg, X, problem, norm_A_p_1)
-end
-
-function computeteALMKKTgaps!(
-    X::Matrix{T},
-    reg::CoBMapBuffer{T},
-    problem::ProblemType{T,CoEdgeSet{T}},
-    σ::T,
-    norm_A_p_1::T,
-    )::Tuple{T,T,T} where T <: AbstractFloat
+    # @assert size(X) == size(BadjZ)
+    # @assert size(Z) == size(U) == size(BX) == size(V)
 
     ## updates/mutates Z, U, BX, V.
     #updateZ!(reg, X, γ, σ, edge_set)

@@ -55,7 +55,11 @@ function computeKKTresiduals!(
     )::Tuple{T,T,T} where T
 
     A, γ, edge_set = unpackspecs(problem)
-    return computeKKTresiduals!(reg, X, A, γ, edge_set, norm_A_p_1)
+
+    p, d, norm_U = computeKKTresiduals!(reg, γ, edge_set, norm_A_p_1)
+    pd = computepdgap(reg, X, A, γ, edge_set, norm_A_p_1, norm_U)
+
+    return p, d, pd
 end
 
 function computeKKTresiduals!(
@@ -66,31 +70,34 @@ function computeKKTresiduals!(
     )::Tuple{T,T,T} where T
 
     A, γ, edge_set = unpackspecs(problem)
-    p_col, d_col, pd_col = computeKKTresiduals!(
+    p_col, d_col, norm_U_col = computeKKTresiduals!(
         reg.col,
-        X,
-        A,
         γ,
         edge_set.col,
         norm_A_p_1,
     )
-    p_row, d_row, pd_row = computeKKTresiduals!(
+    p_row, d_row, norm_U_row = computeKKTresiduals!(
         reg.row,
-        X',
-        A',
         γ,
         edge_set.row,
         norm_A_p_1,
     )
 
-    return p_col + p_row, d_col + d_row, pd_col + pd_row
+    # # debug.
+    # U, BX, prox_U_plus_Z, U_plus_Z, BadjZ_col = unpackbuffer(reg.col.residual)
+    # U, BX, prox_U_plus_Z, U_plus_Z, BadjZ_row = unpackbuffer(reg.row.residual)
+    # pd1_new = norm(BadjZ_col .+ BadjZ_row' .+ X .- A, 2)
+    # #pd1_row = norm( .+ X' .- A', 2)
+    # @show pd1_new
+    # # end debug
+    pd = computepdgap(reg, X, A, γ, edge_set, norm_A_p_1, norm_U_col + norm_U_row)
+
+    return p_col + p_row, d_col + d_row, pd
 end
 
 # For a single regularizer.
 function computeKKTresiduals!(
     reg::BMapBuffer{T}, # mutates tmp buffers.
-    X::AbstractMatrix{T},
-    A::AbstractMatrix{T},
     γ::T,
     edge_set::EdgeSet,
     norm_A_p_1::T,
@@ -100,8 +107,8 @@ function computeKKTresiduals!(
     U, BX, prox_U_plus_Z, U_plus_Z, BadjZ = unpackbuffer(reg.residual)
     w = edge_set.w
 
-    @assert size(A) == size(X)
-    @assert size(Z,1) == size(X,1)
+    #@assert size(A) == size(X)
+    #@assert size(Z,1) == size(X,1)
     @assert size(Z,2) == length(w)
 
     ### KKT gaps. page 22 and section 5.1 in (Sun, JMLR 2021).
@@ -130,31 +137,7 @@ function computeKKTresiduals!(
     end
     dual_gap = numerator_d/norm_A_p_1
 
-    ## primal-dual.
-
-    # pd1, first term in numerator.
-    #   (a+b-c)^2 = a^2 + 2ab - 2ac + b^2 - 2bc + c^2
-    #applyJt!(BadjZ, Z, src_nodes, dest_nodes)
-    applyJt!(BadjZ, Z, edge_set.edges)
-    # a = BadjZ
-    # b = X
-    # c = A
-    #norm_c = abs(norm_A_p_1 - one(T)) # abs() in case of numerical precision issues.
-    #norm_a_plus_b_minus_c = dot(a,a) + 2*dot(a,b) - 2*dot(a,c) + dot(b,b) - 2*dot(b,c) + norm_c*norm_c
-    #pd1::T = sqrt(norm_a_plus_b_minus_c)
-    pd1 = norm(BadjZ .+ X .- A, 2)
-
-    # pd2, second term in numberator.
-    # overwrite the temp. buffer `U_plus_Z`.
-    for i in eachindex(U_plus_Z)
-        U_plus_Z[i] = U[i] + Z[i]
-    end
-    proximaltp!(prox_U_plus_Z, U_plus_Z, w, γ, one(T))
-    pd2::T = sqrt(evalnorm2sq(U, prox_U_plus_Z))
-
-    primal_dual_gap::T = (pd1+pd2)/(norm_A_p_1 + norm_U)
-    
-    return primal_gap, dual_gap, primal_dual_gap
+    return primal_gap, dual_gap, norm_U
 end
 
 ##########
