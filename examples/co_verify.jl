@@ -152,6 +152,7 @@ dual_initial = CC.ALMCoDualVar(
 
 # # if we've already done a run.
 # X0, dual_initial, σ_base, file_counter = loadresult(A_col, γ, σ_base, N_edges_col, N_edges_row, project_folder)
+fil_counter = 0
 
 #@assert 1==2
 
