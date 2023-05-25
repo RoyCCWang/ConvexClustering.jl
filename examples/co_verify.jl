@@ -41,7 +41,6 @@ kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does
 #γ = 1.0
 #γ = 10.0 # first process.
 γ = 100.0 # second process.
-#γ = 100.5
 max_iters_γ = 100
 getγfunc = nn->evalgeometricsequence(nn-1, γ_base, γ_rate)
 
