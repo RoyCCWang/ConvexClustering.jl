@@ -38,7 +38,6 @@ kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does
 # regularization parameter search.
 #γ = 0.0
 #γ = 1e-3
-#γ = 1.0
 #γ = 10.0 # first process.
 γ = 100.0 # second process.
 max_iters_γ = 100
