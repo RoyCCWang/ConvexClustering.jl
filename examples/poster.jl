@@ -11,7 +11,8 @@ table = CSV.read("./data/CCLE_metabolomics_20190502.csv", TypedTables.Table)
 # each row is a data point. column i is the i-th attribute
 csv_mat = readdlm("./data/CCLE_metabolomics_20190502.csv", ',', Any)
 
-data_mat_full = convert(Matrix{T}, csv_mat[2:end, 3:end])
+data_mat_full_original = convert(Matrix{T}, csv_mat[2:end, 3:end])
+data_mat_full = standardizedata(data_mat_full_original)
 
 # debug.
 # reduce for determining if gap calculation has a bug.
@@ -52,7 +53,9 @@ data_row_vecs = collect( vec(data_mat[n,:]) for n in axes(data_mat, 1) )
 # # SL_row_part = SL_row_partitions[SL_row_terminal_ind]
 # # @show length(SL_row_part)
 
-SL_col = data_col_vecs
+#SL_col = data_col_vecs
+A_col_vecs = data_col_vecs
+A_row_vecs = data_row_vecs
 
 #@assert 1==2
 
@@ -65,14 +68,13 @@ metric = Distances.Euclidean()
 kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does not output negative numbers.
 
 # regularization parameter search.
-#γ_base = 0.005
-# γ_base = 0.01 # 0.018 still singletons.
-γ_base = 0.1
-#γ_base = 10.0
-γ_rate = 1.05
+#γ_base = 0.02
+γ_base = 1.0
+
+γ_rate = 1.03
 col_max_partition_size = 2
 row_max_partition_size = 2
-max_iters_γ = 100
+max_iters_γ = 50
 getγfunc = nn->evalgeometricsequence(nn-1, γ_base, γ_rate)
 config_γ = ConvexClustering.SearchCoγConfigType(
     max_iters_γ,
@@ -100,37 +102,31 @@ optim_config = ConvexClustering.ALMConfigType(
 # verbose, trace, and stopping condition configs.
 verbose_subproblem = false
 report_cost = true # want to see the objective score per θ run or γ run.
-store_trace = true
+store_trace = false
 
 # column j of A_col or A_row is the j-th point in the set to be partitioned.
-A_col, edges_col, w_col, neighbourhood_col, θs_col = preparedatagraph(
-    SL_col;
-    #knn = 30,
-    knn = length(SL_col)-1,
+# A_col, edges_col, w_col, neighbourhood_col, θs_col,
+#     A_row, edges_row, w_row, neighbourhood_row, θs_row = autoθ(
+#     A_col_vecs,
+#     A_row_vecs;
+#     knn_factor_col = 0.2, # NaN here leads to full connectivity.
+#     knn_factor_row = 0.2, # NaN here leads to full connectivity.
+# )
+
+A_col, edges_col, w_col, neighbourhoods_col,
+    A_row, edges_row, w_row, neighbourhoods_row  = manualθ(
+    A_col_vecs,
+    A_row_vecs;
+    length_scale_col = 22.0,
+    length_scale_row = 22.0,
+    #length_scale_row = 12.0, # comparable with 22.
+    knn_factor_col = 0.2, # NaN here leads to full connectivity.
+    knn_factor_row = 0.2, # NaN here leads to full connectivity.
 )
 
-A_row_vecs = collect( vec(A_col[n,:]) for n in axes(A_col,1) )
-knn = length(A_row_vecs)-1
-connectivity = CC.KNNType(knn)
-#θ = 0.0005
-#θ = 0.005
-θ = 0.015 # yields large dynamic range: ~0.8
-#θ = 0.05
-#θ = 0.5
-A_row, edges_row, w_row, neighbourhoods_row = CC.setupproblem(
-    A_row_vecs,
-    θ,
-    connectivity;
-    metric = metric,
-    kernelfunc = kernelfunc,
-)
-w_max = maximum(w_row)
-w_min = minimum(w_row)
-@show w_min, w_max, abs(w_max-w_min)
+@show length(w_col), length(w_row), size(data_mat)
 
-
-@show length(w_col), length(w_row)
-
+#@assert 1==2
 
 # initialize γ to NaN since it will be replaced by the search sequence in config_γ = getγfunc
 problem = CC.ProblemType(
@@ -142,7 +138,13 @@ problem = CC.ProblemType(
     ),
 )
 
-
+A_col, edges_col, w_col, neighbourhoods_col,
+A_row, edges_row, w_row, neighbourhoods_row = manualθ(A_col_vecs, A_row_vecs;
+    length_scale_col = 22.0,
+    length_scale_row = 22.0,
+    knn_factor_col = 0.2,
+    knn_factor_row = 0.2,
+)
 
 ### initial guess.
 D_col, N_col = size(A_col)
@@ -172,7 +174,7 @@ assignment_config = CC.CoAssignmentConfigType(assignment_config_col, assignment_
 ### optimization algorithm settings.
 
 ### run optimization.
-Gs_cc, rets, γs = ConvexClustering.searchγ(
+Gs, rets, γs = ConvexClustering.searchγ(
     X0,
     dual_initial,
     problem,
@@ -182,8 +184,18 @@ Gs_cc, rets, γs = ConvexClustering.searchγ(
     store_trace = store_trace,
     report_cost = report_cost,
 )
-G_cc_last = Gs_cc[end]
+G_last = Gs[end]
 iters_γ = length(γs)
+
+# parse.
+Xs = collect( rets[n].X_star for n in eachindex(rets) )
+Zcs = collect( rets[n].dual_star.col.Z for n in eachindex(rets) )
+Zrs = collect( rets[n].dual_star.row.Z for n in eachindex(rets) )
+N_iters = collect( rets[n].num_iters_ran for n in eachindex(rets) )
+gaps = collect( rets[n].gaps for n in eachindex(rets) )
+
+Gs_col = collect( Gs_cc[n].col for n in eachindex(Gs) )
+Gs_row = collect( Gs_cc[n].row for n in eachindex(Gs) )
 
 BSON.bson(
 
@@ -192,11 +204,20 @@ BSON.bson(
         "full_$(γ_base).bson",
     ),
     γs = γs,
-    rets = rets,
-    Gs_cc = Gs_cc,
+
+    Xs = Xs,
+    Zcs = Zcs,
+    Zrs = Zrs,
+    N_iters = N_iters,
+    gaps = gaps,
+
+    Gs_col = Gs_col,
+    Gs_row = Gs_row,
+
     γ_base = γ_base,
     γ_rate = γ_rate,
 )
+
 
 
 @assert 1==2

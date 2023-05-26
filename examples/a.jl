@@ -10,7 +10,9 @@ import CSV
 import TypedTables
 using DelimitedFiles
 import BSON
+
 import Dates
+import Statistics
 
 #import Optim
 #include("./helpers/optim.jl")
