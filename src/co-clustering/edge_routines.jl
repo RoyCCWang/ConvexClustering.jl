@@ -153,6 +153,7 @@ function computepdgap(
 
     U, BX, prox_U_plus_Z, U_plus_Z, BadjZ = unpackbuffer(reg.residual)
     w = edge_set.w
+    Z = reg.Z
 
     ## primal-dual.
 

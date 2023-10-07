@@ -1,8 +1,7 @@
 
 T = Float64
 
-
-
+# fuse points via single linkage before convex clustering.
 metricfunc = (xx,yy)->norm(xx-yy)
 Δc, referenec_sol_Gs_cc = alphaglucose700()
 

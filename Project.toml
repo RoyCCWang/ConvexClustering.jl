@@ -1,5 +1,6 @@
 name = "ConvexClustering"
 uuid = "0437234d-b0b7-4786-9d16-5c3be1f5901d"
+authors = ["Roy Chih Chung Wang"]
 version = "0.1.12"
 
 [deps]

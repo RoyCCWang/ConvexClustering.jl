@@ -4,7 +4,7 @@ T = Float64
 include("./helpers/co.jl")
 
 metricfunc = (xx,yy)->norm(xx-yy)
-project_folder = joinpath(homedir(), "MEGASync/output/convex_clustering/reduced")
+project_folder = joinpath(homedir(), "convex_clustering/cell_line/reduced")
 
 table = CSV.read("./data/CCLE_metabolomics_20190502.csv", TypedTables.Table)
 
@@ -68,8 +68,8 @@ metric = Distances.Euclidean()
 kernelfunc = evalSqExpkernel # must be a positive-definite RKHS kernel that does not output negative numbers.
 
 # regularization parameter search.
-#γ_base = 0.02
-γ_base = 1.0
+γ_base = 0.1
+#γ_base = 1.0
 
 γ_rate = 1.03
 col_max_partition_size = 2

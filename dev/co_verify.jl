@@ -4,7 +4,7 @@ T = Float64
 include("./helpers/co.jl")
 
 metricfunc = (xx,yy)->norm(xx-yy)
-project_folder = joinpath(homedir(), "MEGASync/output/convex_clustering/reduced")
+project_folder = project_folder = joinpath(homedir(), "convex_clustering/cell_line/reduced")
 
 table = CSV.read("./data/CCLE_metabolomics_20190502.csv", TypedTables.Table)
 
