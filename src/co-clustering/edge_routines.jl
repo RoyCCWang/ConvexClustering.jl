@@ -236,15 +236,15 @@ end
 
 ##########
 
-function primaldirect(X::Matrix{T}, problem::ProblemType{T,EdgeSet{T}})::T where T <: AbstractFloat
+function evalprimal(X::Matrix{T}, problem::ProblemType{T,EdgeSet{T}})::T where T <: AbstractFloat
     
     A, γ, E = unpackspecs(problem)
 
-    return primaldirect(X, E.w, E.edges, γ, A)
+    return evalprimal(X, E.w, E.edges, γ, A)
 end
 
 # co-clustering
-function primaldirect(X::Matrix{T}, problem::ProblemType{T,CoEdgeSet{T}})::T where T <: AbstractFloat
+function evalprimal(X::Matrix{T}, problem::ProblemType{T,CoEdgeSet{T}})::T where T <: AbstractFloat
 
     A, γ, E = unpackspecs(problem)
     col_edges, row_edges = E.col.edges, E.row.edges

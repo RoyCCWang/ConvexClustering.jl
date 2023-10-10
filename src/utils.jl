@@ -67,3 +67,15 @@ end
 #    out = clamp(out, zero(T), convert(T,Inf))
 #    return sqrt(out)
 # end
+
+
+## helpers for choosing γ_base.
+
+function getmultidimσ(σ_1D::T, D::Int)::T where T
+    
+    # based on:
+    # γ^2 = D*σ_1D^2 # strive to get the D-dim distance with the given 1D length.
+    
+    γ = sqrt(D*σ_1D^2)
+    return γ
+end

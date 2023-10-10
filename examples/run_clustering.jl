@@ -13,17 +13,17 @@ import Distances
 #import Optim
 
 import Distributions # for setting up data.
-import PyPlot
+import PythonPlot
 
-using Plots; plotlyjs()
+#using Plots; plotlyjs()
 
 include("./helpers/generatesetup.jl")
 include("./helpers/utils.jl")
 #include("./helpers/optim.jl")
 
-PyPlot.matplotlib["rcParams"][:update](["font.size" => 16, "font.family" => "serif"])
+#PythonPlot.matplotlib["rcParams"][:update](["font.size" => 16, "font.family" => "serif"])
 
-PyPlot.close("all")
+PythonPlot.close("all")
 fig_num = 1
 
 
@@ -167,9 +167,15 @@ config = ConvexClustering.ALMConfigType(
 problem = ConvexClustering.ProblemType(A, γ, w, edge_pairs)
 
 println("Timing: runALM")
-@time ret = ConvexClustering.runALM(X0, Z0, problem, config; store_trace = true)
+@time ret = ConvexClustering.runALM(
+    X0,
+    Z0,
+    problem,
+    config;
+    store_trace = true,
+)
 
-X_star, Z_star, num_iters_ran, gaps, trace = ret.X_star, ret.Z_star, ret.num_iters_ran, ret.gaps, ret.trace
+X_star, dual_star, num_iters_ran, gaps, trace = ret.X_star, ret.dual_star, ret.num_iters_ran, ret.gaps, ret.trace
 @show num_iters_ran
 
 
@@ -183,12 +189,11 @@ G, g_neighbourhoods = ConvexClustering.assignviaX(X_star, metric;
 
 P = ConvexClustering.applyassignment(G, A_vecs)
 
+
 d1 = 1
 d2 = 2
-plot_handle = plot2Dclusters(P, d1, d2)
-display(plot_handle)
+fig_num = plot2Dclusters(P, d1, d2, fig_num)
 
-#@assert 3==4
 
 
 #### diagnostics on optimization run.
@@ -220,7 +225,7 @@ end
 using DataFrames
 
 diff_x = trace.diff_x
-diff_Z = trace.diff_Z
+diff_Z = trace.diff_Z[begin] # co-clustering (under development) have 2-elements, conventional has 1-element.
 grad_tol = collect( updateϵfunc(i)/max(1,sqrt(updateσfunc(i))) for i = 1:num_iters_ran )
 cost = trace_evals
 cost_m = computeseqchange(cost)
@@ -268,52 +273,54 @@ ln_p_gap_history = log.(p_gap_history)
 ln_d_gap_history = log.(d_gap_history)
 ln_pd_gap_history = log.(pd_gap_history)
 
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-#PyPlot.plot(max_gap_history)
-PyPlot.plot(ln_trace_evals, label = "ln_trace_evals")
-PyPlot.plot(ln_trace_evals, "o")
+#PythonPlot.plot(max_gap_history)
+PythonPlot.plot(ln_trace_evals, label = "ln_trace_evals")
+PythonPlot.plot(ln_trace_evals, "o")
 
-PyPlot.legend()
-PyPlot.xlabel("iter")
-PyPlot.ylabel("log-space")
-PyPlot.title("primal problem cost")
+PythonPlot.legend()
+PythonPlot.xlabel("iter")
+PythonPlot.ylabel("log-space")
+PythonPlot.title("primal problem cost")
 
 
 
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-#PyPlot.plot(max_gap_history)
-PyPlot.plot(ln_p_gap_history, label = "ln_p_gap_history")
-PyPlot.plot(ln_p_gap_history, "o")
+#PythonPlot.plot(max_gap_history)
+PythonPlot.plot(ln_p_gap_history, label = "ln_p_gap_history")
+PythonPlot.plot(ln_p_gap_history, "o")
 
-PyPlot.legend()
-PyPlot.xlabel("iter")
-PyPlot.ylabel("log-space")
-PyPlot.title("primal gap history")
+PythonPlot.legend()
+PythonPlot.xlabel("iter")
+PythonPlot.ylabel("log-space")
+PythonPlot.title("primal gap history")
 
 
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(ln_d_gap_history, label = "ln_d_gap_history")
-PyPlot.plot(ln_d_gap_history, "o")
+PythonPlot.plot(ln_d_gap_history, label = "ln_d_gap_history")
+PythonPlot.plot(ln_d_gap_history, "o")
 
-PyPlot.legend()
-PyPlot.xlabel("iter")
-PyPlot.ylabel("log-space")
-PyPlot.title("dual gap history")
+PythonPlot.legend()
+PythonPlot.xlabel("iter")
+PythonPlot.ylabel("log-space")
+PythonPlot.title("dual gap history")
 
 
 
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(ln_pd_gap_history, label = "ln_pd_gap_history")
-PyPlot.plot(ln_pd_gap_history, "o")
-PyPlot.legend()
-PyPlot.xlabel("iter")
-PyPlot.ylabel("log-space")
-PyPlot.title("primal-dual gap history")
+PythonPlot.plot(ln_pd_gap_history, label = "ln_pd_gap_history")
+PythonPlot.plot(ln_pd_gap_history, "o")
+PythonPlot.legend()
+PythonPlot.xlabel("iter")
+PythonPlot.ylabel("log-space")
+PythonPlot.title("primal-dual gap history")
+
+nothing

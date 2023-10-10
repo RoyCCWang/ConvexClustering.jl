@@ -31,7 +31,7 @@ function runconvexclustering(
         zero_tol = assignment_config.zero_tol)
 
     if report_cost
-        cost = primaldirect(ret.X_star,problem)
+        cost = evalprimal(ret.X_star,problem)
         cost = round.(cost, sigdigits = 4)
 
         sol_gaps = round.(ret.gaps, sigdigits = 4)
@@ -97,7 +97,7 @@ function runconvexclustering(
     )
 
     if report_cost
-        cost = primaldirect(ret.X_star, problem)
+        cost = evalprimal(ret.X_star, problem)
         cost = round.(cost, sigdigits = 4)
 
         sol_gaps = round.(ret.gaps, sigdigits = 4)

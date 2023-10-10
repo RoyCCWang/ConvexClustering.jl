@@ -57,7 +57,7 @@ function constructposteriorproxy(
     @assert length(γs) == length(Xs)
 
     
-    ys = collect( ConvexClustering.primaldirect(Xs[n], w, edges, γs[n], A) for n in eachindex(Xs) )
+    ys = collect( ConvexClustering.evalprimal(Xs[n], w, edges, γs[n], A) for n in eachindex(Xs) )
 
     #negative_log_likelihood = Interpolations.cubic_spline_interpolation(γs, ys)
     p_tilde(x) = exp(-negative_log_likelihood(x))

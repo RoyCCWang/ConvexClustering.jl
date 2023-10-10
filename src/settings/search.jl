@@ -115,6 +115,78 @@ function searchγ(
     return Gs, rets, γs
 end
 
+function searchγ2(
+    X0::Matrix{T},
+    Z0::Union{Matrix{T}, ALMCoDualVar{T}},
+    problem_in::ProblemType{T,ET},
+    optim_config::ALMConfigType{T},
+    assignment_config::AbstractAssignmentConfigType,
+    search_config::Union{SearchγConfigType, SearchCoγConfigType};
+    store_trace::Bool = true,
+    store_trace_assignments::Bool = true,
+    report_cost::Bool = true,
+    ) where {T <: AbstractFloat, ET <: EdgeFormulation}
+
+    E = problem_in.edge_set
+    max_iters, getγfunc = search_config.max_iters, search_config.getγfunc
+
+    DT = getdualtype(E) # dual variable type.
+    rets = Vector{ALMSolutionType{T, DT}}(undef, 1)
+    
+    AT = getassignmenttype(E) # assignment result type.
+    Gs = Vector{AT}(undef, 1)
+    γs = Vector{T}(undef, 1)
+
+    # first run.
+    iter = 1
+    γ = getγfunc(iter)
+    problem = copywithγ(problem_in, γ)
+    X_initial = X0
+    Z_initial = Z0
+
+    G, ret = runconvexclustering(X_initial, Z_initial,
+        problem, optim_config, assignment_config;
+        store_trace = store_trace,
+        report_cost = report_cost)
+
+    Gs[begin] = G
+    rets[begin] = ret
+    γs[begin] = γ
+
+    # keep running if too many parts in the returned partition G.
+    while partitionislarger(G, search_config) && iter <= max_iters
+    #while length(G) > search_config.max_partition_size && iter <= max_iters
+
+        iter += 1
+        γ = getγfunc(iter)
+        problem = copywithγ(problem_in, γ)
+        X_initial = ret.X_star
+        Z_initial = ret.dual_star
+
+        G, ret = runconvexclustering(X_initial, Z_initial,
+        problem, optim_config, assignment_config;
+            store_trace = store_trace,
+            report_cost = report_cost,
+        )
+
+        if store_trace_assignments
+            push!(Gs, G)
+            push!(rets, ret)
+            push!(γs, γ)
+        else
+            Gs[begin] = G
+            rets[begin] = ret
+            γs[begin] = γ
+        end
+
+        if partitionissmaller(G, search_config)
+        #if length(new_G) < search_config.max_partition_size
+            return Gs, rets, γs
+        end
+    end
+
+    return Gs, rets, γs
+end
 
 function partitionislarger(G::Vector{Vector{Int}}, search_config::SearchγConfigType)::Bool
     return length(G) > search_config.max_partition_size

@@ -1,5 +1,15 @@
 
+function runALM(
+    X_initial::Matrix{T},
+    Z_initial::Matrix{T},
+    problem::ProblemType{T,ET},
+    config::ALMConfigType{T};
+    store_trace::Bool = false,
+    verbose = false,
+    ) where {T,ET}
 
+    return runALM(X_initial, ALMDualVar(Z_initial), problem, config; store_trace = store_trace, verbose = verbose)
+end
 
 """
 ```
@@ -115,7 +125,7 @@ function runALM(
         # store trace diagnostics. 
         if store_trace
             trace.gaps[iter] = gaps
-            trace.problem_cost[iter] = primaldirect(
+            trace.problem_cost[iter] = evalprimal(
                 reshape(x_star,size(A)),
                 problem,
             )
@@ -135,6 +145,9 @@ function runALM(
 
         # stopping criterion.
         if maximum(gaps) < gap_tol
+
+            resizetrace!(trace, traitof(edge_set), iter)
+
             return ALMSolutionType(
                 reshape(x_star, D, N),
                 reg,

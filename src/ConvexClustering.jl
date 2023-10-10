@@ -35,7 +35,7 @@ module ConvexClustering
         runALM, # solves the convex clustering optimization problem
         assignviaX, # get assignment
         applyassignment,
-        primaldirect, # evaluate the convex clustering cost function. No thte ALM primal function, even though it and its constraints form an equivalent optimization problem.
+        evalprimal, # evaluate the convex clustering cost function. No thte ALM primal function, even though it and its constraints form an equivalent optimization problem.
 
         # frontend for search strategies given some stopping conditions for reguliarzation or weight function hyperparameters.
         searchkernelparameters,

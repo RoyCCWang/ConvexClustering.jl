@@ -1,9 +1,3 @@
-# The semismooth Newton-CG augmented Lagrangian (SSNL) algorithm from  http://jmlr.org/papers/v22/18-694.html
-
-
-function runSSNL()
-
-end
 
 
 #### primal.
@@ -20,10 +14,54 @@ function primalproblem!(BX::Matrix{T},
     return term1 + p_Y
 end
 
+function evalprimal(X::Matrix{T}, problem::ProblemType, γ::T)::T where T <: AbstractFloat
+
+    A, _, E = ConvexClustering.unpackspecs(problem)
+    return evalprimal(X, E.w, E.edges, γ, A)
+end
+
+function evalprimalterms(X::Matrix{T}, problem::ProblemType)::Tuple{T,T} where T <: AbstractFloat
+
+    A, _, E = ConvexClustering.unpackspecs(problem)
+    return evalprimalterms(X, E.w, E.edges, A)
+end
+
 """
-    primaldirect(X::Matrix{T}, w::Vector{T}, edge_pairs, γ::T, A::Matrix{T})::T where T <: AbstractFloat
+evalprimal(
+    X::Matrix{T},
+    w::Vector{T},
+    edge_pairs::Vector{Tuple{Int,Int}},
+    γ::T,
+    A::Matrix{T},
+    )::T where T <: AbstractFloat
 """
-function primaldirect(X::Matrix{T}, w::Vector{T}, edge_pairs::Vector{Tuple{Int,Int}}, γ::T, A::Matrix{T})::T where T <: AbstractFloat
+function evalprimal(
+    X::Matrix{T},
+    w::Vector{T},
+    edge_pairs::Vector{Tuple{Int,Int}},
+    γ::T,
+    A::Matrix{T},
+    )::T where T <: AbstractFloat
+
+    data_fidelity, regularization = evalprimalterms(X, w, edge_pairs, A)
+
+    return data_fidelity + γ*regularization
+end
+
+"""
+evalprimalterms(
+    X::Matrix{T},
+    w::Vector{T},
+    edge_pairs::Vector{Tuple{Int,Int}},
+    A::Matrix{T},
+    )::T where T <: AbstractFloat
+"""
+function evalprimalterms(
+    X::Matrix{T},
+    w::Vector{T},
+    edge_pairs::Vector{Tuple{Int,Int}},
+    A::Matrix{T},
+    )::Tuple{T,T} where T <: AbstractFloat
 
     #
     term1 = (dot(X,X) + dot(A,A) - 2*dot(X,A))/2 # norm(X-A,2)^2
@@ -43,7 +81,6 @@ function primaldirect(X::Matrix{T}, w::Vector{T}, edge_pairs::Vector{Tuple{Int,I
         end
         term2 += w[l]*sqrt(running_sum)
     end
-    term2 = term2*γ
-
-    return term1 + term2
+    
+    return term1, term2
 end

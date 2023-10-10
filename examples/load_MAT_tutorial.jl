@@ -4,7 +4,7 @@
 # Pkg.add("MAT")
 # Pkg.add(url="https://github.com/RoyCCWang/ConvexClustering.jl")
 # Pkg.add("Distances")
-# Pkg.add("PyPlot")
+# Pkg.add("PythonPlot")
 # ### end of package install
 
 # include("../../src/ConvexClustering.jl")
@@ -52,12 +52,12 @@ import Distances
 import MAT
 
 # visualize.
-import PyPlot
+import PythonPlot
 
 
-# set up PyPlot plotting preferences.
-PyPlot.matplotlib["rcParams"][:update](["font.size" => 16, "font.family" => "serif"])
-PyPlot.close("all")
+# set up PythonPlot plotting preferences.
+#PythonPlot.matplotlib["rcParams"][:update](["font.size" => 16, "font.family" => "serif"])
+PythonPlot.close("all")
 fig_num = 1
 
 
@@ -205,49 +205,49 @@ ln_d_gap_history = log.(d_gap_history)
 ln_pd_gap_history = log.(pd_gap_history)
 
 # ln of optimization cost.
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(ln_trace_evals, label = "ln_trace_evals")
-PyPlot.plot(ln_trace_evals, "o")
+PythonPlot.plot(ln_trace_evals, label = "ln_trace_evals")
+PythonPlot.plot(ln_trace_evals, "o")
 
-PyPlot.legend()
-PyPlot.xlabel("iter")
-PyPlot.ylabel("Natural log space")
-PyPlot.title("NOptimization cost")
+PythonPlot.legend()
+PythonPlot.xlabel("iter")
+PythonPlot.ylabel("Natural log space")
+PythonPlot.title("NOptimization cost")
 
 # ln of primal gap. Should decrease to -Inf. In practice it might fluctuate once small enough due to numerical precision issues.
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(ln_p_gap_history, label = "ln_p_gap_history")
-PyPlot.plot(ln_p_gap_history, "o")
+PythonPlot.plot(ln_p_gap_history, label = "ln_p_gap_history")
+PythonPlot.plot(ln_p_gap_history, "o")
 
-PyPlot.legend()
-PyPlot.xlabel("iter")
-PyPlot.ylabel("Natural log space")
-PyPlot.title("Primal gap history")
+PythonPlot.legend()
+PythonPlot.xlabel("iter")
+PythonPlot.ylabel("Natural log space")
+PythonPlot.title("Primal gap history")
 
 # ln of dual gap. Should decrease to -Inf. Same issue with numerical precision applies.
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(ln_d_gap_history, label = "ln_d_gap_history")
-PyPlot.plot(ln_d_gap_history, "o")
+PythonPlot.plot(ln_d_gap_history, label = "ln_d_gap_history")
+PythonPlot.plot(ln_d_gap_history, "o")
 
-PyPlot.legend()
-PyPlot.xlabel("iter")
-PyPlot.ylabel("Natural log space")
-PyPlot.title("Dual gap history")
+PythonPlot.legend()
+PythonPlot.xlabel("iter")
+PythonPlot.ylabel("Natural log space")
+PythonPlot.title("Dual gap history")
 
 
 # ln of primal-dual gap. Should decrease to -Inf. Same issue with numerical precision applies.
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(ln_pd_gap_history, label = "ln_pd_gap_history")
-PyPlot.plot(ln_pd_gap_history, "o")
-PyPlot.legend()
-PyPlot.xlabel("iter")
-PyPlot.ylabel("Natural log space")
-PyPlot.title("Primal-dual gap history")
+PythonPlot.plot(ln_pd_gap_history, label = "ln_pd_gap_history")
+PythonPlot.plot(ln_pd_gap_history, "o")
+PythonPlot.legend()
+PythonPlot.xlabel("iter")
+PythonPlot.ylabel("Natural log space")
+PythonPlot.title("Primal-dual gap history")

@@ -213,7 +213,7 @@ dic = BSON.load(
 )
 
 # #
-# objfunc = xx->CC.primaldirect( reshape(xx, size(X0)), problem)
+# objfunc = xx->CC.evalprimal( reshape(xx, size(X0)), problem)
 
 # ret_evo = EVO.optimize(
 #     objfunc,

@@ -1,15 +1,11 @@
 
-import Distances
 
-import JLD
-using LinearAlgebra
 
-# include("../../src/ConvexClustering.jl")
-# import .ConvexClustering
-import ConvexClustering
+#import JLD
+#using LinearAlgebra
+#import ConvexClustering
 
-#import Optim
-#include("./helpers/optim.jl")
+T = Float64
 
 ### these specify the square exponential kernel for the weight function, and how to update the length scale hyperparameter.
 function lengthscale2θ(l::T)::T where T <: AbstractFloat
@@ -65,8 +61,18 @@ config_θ = ConvexClustering.SearchθConfigType(length_scale_max_iters, min_dyna
 γ_rate = 1.05
 max_partition_size = length(Δc_m[1]) + 2 # stop searching once the size of the returned partition is less than `max_partition_size`.
 max_iters_γ = 100
+
+# # special case.
+# γ_base = 0.01
+# max_partition_size = 2 # force search almost all γs.
+# # end special case.
+
 getγfunc = nn->evalgeometricsequence(nn-1, γ_base, γ_rate)
-config_γ = ConvexClustering.SearchγConfigType(max_iters_γ, max_partition_size, getγfunc)
+config_γ = ConvexClustering.SearchγConfigType(
+    max_iters_γ,
+    max_partition_size,
+    getγfunc,
+)
 
 # convex clustering optimization algorithm configuration.
 σ_base = 0.4
@@ -131,6 +137,34 @@ Gs, rets, γs = ConvexClustering.searchγ(
 G = Gs[end]
 iters_γ = length(γs)
 
+R = rets[end]
+X_star = R.X_star
+
+
+data_fidelity, regularization = ConvexClustering.evalprimalterms(X_star, problem)
+cost_star = data_fidelity + γs[end]*regularization
+
+@assert length(rets) == length(γs)
+primal_costs = collect( 
+    ConvexClustering.evalprimal(rets[n].X_star, problem, γs[n])
+    for n in eachindex(rets)
+)
+
+term1s = collect( 
+    ConvexClustering.evalprimalterms(rets[n].X_star, problem)[1]
+    for n in eachindex(rets)
+)
+
+term2s = collect( 
+    ConvexClustering.evalprimalterms(rets[n].X_star, problem)[2]
+    for n in eachindex(rets)
+)
+
+diff(term1s) ./ term1s[1:end-1]
+diff(term2s) ./ term2s[1:end-1]
+
+# I am here. use ABC on f(γ) -> X_star =: Y, given Y = A.
+
 println("Are the returned partitions nested successively? ", all(ConvexClustering.isnestedsuccessively(Gs)))
 #=
 however, if we had:
@@ -143,3 +177,5 @@ then we wouldn't have nested partitions. The theory in (Chi, SIAM 2019) is for f
 println("Starting γ: ", config_γ.getγfunc(1))
 println("resulting γ: ", config_γ.getγfunc(iters_γ))
 @show max_partition_size
+
+nothing

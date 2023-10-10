@@ -5,7 +5,7 @@
 import RKHSRegularization
 RKReg = RKHSRegularization
 
-import PyPlot # for visualizing posterior.
+import PythonPlot # for visualizing posterior.
 
 import HCubature # for computing the normalizing constant of proxy posterior.
 #### end posterior-related
@@ -39,10 +39,10 @@ lb = minimum(γs)
 ub = maximum(γs)
 # end debug.
 
-ys = collect( ConvexClustering.primaldirect(Xs[n], w, edges, γs[n], A) for n in eachindex(Xs) )
+ys = collect( ConvexClustering.evalprimal(Xs[n], w, edges, γs[n], A) for n in eachindex(Xs) )
 
 
-##### regression: ignoring prror and using only likelihood (primaldirect costfunc) for now to make sure code runs.
+##### regression: ignoring prror and using only likelihood (evalprimal costfunc) for now to make sure code runs.
 #θ = Spline34KernelType(0.2)
 θ = RKReg.BrownianBridge10(1.0)
 #θ = BrownianBridge20(1.0)
@@ -77,28 +77,28 @@ yq = Vector{T}(undef, Nq)
 RKReg.query!(yq,xq,η)
 
 # Visualize regression result.
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(X, y, ".", label = "observed")
-PyPlot.plot(xq, yq, label = "fit")
+PythonPlot.plot(X, y, ".", label = "observed")
+PythonPlot.plot(xq, yq, label = "fit")
 
-#PyPlot.plot(xq, f_xq, label = "true")
+#PythonPlot.plot(xq, f_xq, label = "true")
 
 title_string = "unnormalized negative log likelihood"
-PyPlot.title(title_string)
-PyPlot.legend()
+PythonPlot.title(title_string)
+PythonPlot.legend()
 ##### end of regression
 
 
-PyPlot.figure(fig_num)
+PythonPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(X, exp.(-y), ".", label = "observed")
-PyPlot.plot(xq, exp.(-yq), label = "fit")
+PythonPlot.plot(X, exp.(-y), ".", label = "observed")
+PythonPlot.plot(xq, exp.(-yq), label = "fit")
 
 title_string = "unnormalized posterior"
-PyPlot.title(title_string)
-PyPlot.legend()
+PythonPlot.title(title_string)
+PythonPlot.legend()
 
 nothing

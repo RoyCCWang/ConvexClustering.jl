@@ -41,8 +41,10 @@ end
 ###
 
 # reference solver.
-import Evolutionary
-const EVO = Evolutionary
+# import Evolutionary
+# const EVO = Evolutionary
+
+import PythonPlot
 
 import SingleLinkagePartitions
 const SL = SingleLinkagePartitions
@@ -52,4 +54,4 @@ include("./helpers/data.jl")
 using Revise
 
 import ConvexClustering
-CC = ConvexClustering
+const CC = ConvexClustering
